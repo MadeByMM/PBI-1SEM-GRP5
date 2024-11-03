@@ -13,10 +13,33 @@ def fetch_options(query):
     con.close()
     return options
 
+def update_machine_options(*args):
+    global machine_options  # Ensure machine_options is updated globally
+    selected_material = material_id_var.get()
+    if selected_material == "Choose One":
+        machine_id_var.set("Choose One")
+        machine_id_menu['menu'].delete(0, 'end')
+        machine_options = {}
+        return
+
+    material_id = material_options[selected_material]
+    query = "SELECT machine_id, machine_name FROM machines WHERE machine_id IN (SELECT for_machine FROM materials WHERE material_id = ?)"
+    con = sqlite3.connect('database/nexttech_calculator.db')
+    cur = con.cursor()
+    cur.execute(query, (material_id,))
+    machine_options = {row[1]: row[0] for row in cur.fetchall()}
+    con.close()
+
+    machine_id_var.set("Choose One")
+    machine_id_menu['menu'].delete(0, 'end')
+    for machine_name in machine_options.keys():
+        machine_id_menu['menu'].add_command(label=machine_name, command=tk._setit(machine_id_var, machine_name))
+
+
 def calculate():
     try:
 
-        if machine_id_var.get() == "Choose One" or process_id_var.get() == "Choose One" or material_id_var.get() == "Choose One":
+        if machine_id_var.get() == "Choose One" or material_id_var.get() == "Choose One":
             messagebox.showerror("Error", "Please select valid options for machine, process, and material.")
             return
 
@@ -27,10 +50,16 @@ def calculate():
         numbers_of_builds = int(numbers_of_builds_entry.get())
 
         machine_id = machine_options[machine_id_var.get()]
-        process_id = process_options[process_id_var.get()]
         material_id = material_options[material_id_var.get()]
 
-        # Debugging: Print the query
+        # Fetch the process based on the selected material and machine
+        query = "SELECT in_process FROM materials WHERE material_id = ? AND for_machine = ?"
+        process_id = cur.execute(query, (material_id, machine_id)).fetchone()
+        if process_id is None:
+            messagebox.showerror("Error", "No process found for the selected machine and material.")
+            return
+        process_id = process_id[0] 
+
         query = "SELECT * FROM materials WHERE for_machine = ? AND in_process = ?"
         materials = cur.execute(query, (material_id, process_id)).fetchone()
         if materials is None:
@@ -226,33 +255,28 @@ root = tk.Tk()
 root.title("Calculator")
 
 # Fetch options for dropdown menus
-machine_options = fetch_options("SELECT machine_id, machine_name FROM machines")
-process_options = fetch_options("SELECT process_id, process_name FROM processes")
 material_options = fetch_options("SELECT material_id, material_name FROM materials")
 
 # Add "Choose One" option
-machine_options = {"Choose One": None, **machine_options}
-process_options = {"Choose One": None, **process_options}
 material_options = {"Choose One": None, **material_options}
 
+# Initialize machine_options
+machine_options = {}
+
 # Create dropdown menus
-Label(root, text="Pick machine:").grid(row=2, column=0)
-machine_id_var = StringVar(root)
-machine_id_var.set("Choose One") # default value
-machine_id_menu = OptionMenu(root, machine_id_var, *machine_options.keys())
-machine_id_menu.grid(row=2, column=1)
-
-Label(root, text="Pick process:").grid(row=3, column=0)
-process_id_var = StringVar(root)
-process_id_var.set("Choose One") # default value
-process_id_menu = OptionMenu(root, process_id_var, *process_options.keys())
-process_id_menu.grid(row=3, column=1)
-
-Label(root, text="Pick material:").grid(row=4, column=0)
+Label(root, text="Pick material:").grid(row=2, column=0)
 material_id_var = StringVar(root)
-material_id_var.set("Choose One") # default value
+material_id_var.set("Choose One")  # default value
+material_id_var.trace('w', update_machine_options)
 material_id_menu = OptionMenu(root, material_id_var, *material_options.keys())
-material_id_menu.grid(row=4, column=1)
+material_id_menu.grid(row=2, column=1)
+
+Label(root, text="Pick machine:").grid(row=3, column=0)
+machine_id_var = StringVar(root)
+machine_id_var.set("Choose One")  # default value
+machine_id_menu = OptionMenu(root, machine_id_var, "Choose One")
+machine_id_menu.grid(row=3, column=1)
+
 
 # Create and place labels and entry fields
 tk.Label(root, text="Enter parts produced:").grid(row=0, column=0)
@@ -263,17 +287,17 @@ tk.Label(root, text="Enter number of builds:").grid(row=1, column=0)
 numbers_of_builds_entry = tk.Entry(root)
 numbers_of_builds_entry.grid(row=1, column=1)
 
-tk.Label(root, text="Enter part mass in kg:").grid(row=5, column=0)
+tk.Label(root, text="Enter part mass in kg:").grid(row=4, column=0)
 part_mass_entry = tk.Entry(root)
-part_mass_entry.grid(row=5, column=1)
+part_mass_entry.grid(row=4, column=1)
 
-tk.Label(root, text="Enter part height in cm:").grid(row=6, column=0)
+tk.Label(root, text="Enter part height in cm:").grid(row=5, column=0)
 part_height_entry = tk.Entry(root)
-part_height_entry.grid(row=6, column=1)
+part_height_entry.grid(row=5, column=1)
 
-tk.Label(root, text="Enter part area in cm^2:").grid(row=7, column=0)
+tk.Label(root, text="Enter part area in cm^2:").grid(row=6, column=0)
 part_area_entry = tk.Entry(root)
-part_area_entry.grid(row=7, column=1)
+part_area_entry.grid(row=6, column=1)
 
 tk.Label(root, text="Enter support material as percent of mass (ex: 0.15):").grid(row=8, column=0)
 support_material_entry = tk.Entry(root)
