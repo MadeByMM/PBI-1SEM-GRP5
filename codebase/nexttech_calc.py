@@ -7,8 +7,8 @@ from contextlib import closing
 import re
 
 # Users database file
-DB_FILE = "nexttech_users.db"
-con = sqlite3.connect("nexttech_users.db")
+DB_FILE = "codebase/nexttech_users.db"
+con = sqlite3.connect("codebase/nexttech_users.db")
 previous_frame = None
 current_username = ""
 
@@ -275,7 +275,7 @@ def go_back():
 # Main window setup
 root = tk.Tk()
 root.title("Nexttech Calculator")
-root.iconbitmap("C:/Users/Sinan/Desktop/code/APU/nexttech/next.ico")
+root.iconbitmap("codebase/next.ico")
 root.geometry("800x600")  # Set initial app window size
 root.config(background ="#333333" )
 
