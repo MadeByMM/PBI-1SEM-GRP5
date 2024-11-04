@@ -4,19 +4,19 @@
 # Milepæl uge 46: 
 * Matematik til udregning
 * Database setup
-* Login screen blackened
+* Login screen backend
 * Login screen frontend
-* Calc window blackened
+* Calc window backend
 * Calc window frontend
-* Admin window blackened
+* Admin window backend
 * Admin window frontend
 
 # Milepæl uge 47:
-* History window blackened
+* History window backend
 * History window frontend
-* Register user blackened
+* Register user backend
 * Register user frontend
-* Admin settings blackened
+* Admin settings backend
 * Admin settings frontend
 
 # Milepæl uge 48:
