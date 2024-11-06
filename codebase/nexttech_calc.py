@@ -6,6 +6,7 @@ from tkinter import ttk
 from contextlib import closing
 from PIL import Image, ImageTk
 import re
+import customtkinter as ctk
 
 # Users database file
 con = sqlite3.connect("codebase/nexttech_users.db")
@@ -253,15 +254,16 @@ def show_frame(frame):
 
     frame.tkraise()
 
-    # Clear entries only when switching from the login page
-    if frame == login_frame:
-        username_entry_login.delete(0, tk.END)
-        password_entry_login.delete(0, tk.END)
-        username_entry_login.focus()  
-        root.bind('<Return>', lambda event: login())     
+    if frame == background_frame or frame == login_frame:
+        root.after(100, lambda: username_entry_login.focus()) 
+        root.bind('<Return>', lambda event: login())  # Bind the Return key to login
+        username_entry_login.delete(0, tk.END)  # Clear username field
+        password_entry_login.delete(0, tk.END)  # Clear password field
     else:
-        root.unbind('<Return>')  # Unbind Enter on other frames
+        root.unbind('<Return>')  # Unbind Return on other frames
 
+def logout():
+    show_frame(background_frame)
 # clear entry fields after creating a new user
 def clear_user_management_fields():
     username_entry_user_management.delete(0, tk.END)
@@ -311,7 +313,19 @@ def create_rounded_rectangle(canvas, x1, y1, x2, y2, radius=25, fill='white', ou
 
 def on_button_click():
     login()
-    
+
+def on_focus_in(entry, placeholder_text):
+    """Clear the placeholder text when the entry field gets focus"""
+    if entry.get() == placeholder_text:
+        entry.delete(0, ctk.END)
+        entry.configure(fg_color="white")  # Reset text color to white when typing starts
+
+def on_focus_out(entry, placeholder_text):
+    """Restore the placeholder text if the entry field is empty"""
+    if entry.get() == '':
+        entry.insert(0, placeholder_text)
+        entry.configure(fg_color="#D3D3D3")
+
 # MAIN WINDOW
 root = tk.Tk()
 root.title("Nexttech Calculator")
@@ -379,78 +393,311 @@ password_entry_login.grid(row=1, column=1, padx=5, pady=5)
 
 # Frame for "user" login
 user_mainpage_frame = tk.Frame(root)
-tk.Label(user_mainpage_frame, text="User Main Page", font=("Arial", 16)).grid(row=0, column=0, pady=10)
 
-tk.Button(user_mainpage_frame, text="New Calculation", command=lambda: show_frame(New_calculation_frame)).grid(row=1, column=0, pady=20)
-tk.Button(user_mainpage_frame, text="Calculation History", command= lambda: show_frame(Calculation_history_frame)).grid(row=2, column=0, pady=20)
-tk.Button(user_mainpage_frame, text="Log out", command=lambda: show_frame(login_frame)).grid(row=3, column=0, pady=10)
+ctk.CTkButton(
+    user_mainpage_frame,
+    text="New Calculation", 
+    command=lambda: show_frame(New_calculation_frame), 
+    corner_radius=10, 
+    fg_color="#D9D9D9", 
+    text_color="#000000",
+    font=("Inter", 15),
+    width=180, 
+    height=50
+).grid(row=1, column=0, padx=5, sticky="nw")
+
+ctk.CTkButton(
+    user_mainpage_frame,
+    text="Calculation History", 
+    command=lambda: show_frame(Calculation_history_frame), 
+    corner_radius=10, 
+    fg_color="#D9D9D9", 
+    text_color="#000000",
+    font=("Inter", 15),
+    width=180, 
+    height=50
+).grid(row=2, column=0, padx=5, sticky="nw")
+
+ctk.CTkButton(
+    user_mainpage_frame,
+    text="Log out", 
+    command=logout, 
+    corner_radius=10, 
+    fg_color="#D9D9D9", 
+    text_color="#000000",
+    font=("Inter", 15),
+    width=180, 
+    height=50
+).grid(row=10, column=0, padx=5, sticky="nw")
+
+for i in range(20):  
+    user_mainpage_frame.grid_rowconfigure(i, weight=1)
+for i in range(12):
+    user_mainpage_frame.grid_columnconfigure(0, weight=1)
 
 # Frame for "admin" login
 admin_mainpage_frame = tk.Frame(root)
-tk.Label(admin_mainpage_frame, text="Admin Main Page", font=("Arial", 16)).grid(row=0, column=0, pady=10)
 
-tk.Button(admin_mainpage_frame, text="New Calculation", command=lambda: show_frame(New_calculation_frame)).grid(row=1, column=0, pady=20)
-tk.Button(admin_mainpage_frame, text="Calculation History", command=lambda: show_frame(Calculation_history_frame)).grid(row=2, column=0, pady=20)
-tk.Button(admin_mainpage_frame, text="Price Settings", command= lambda: show_frame(price_settings_frame)).grid(row=3, column=0, pady=20)
-tk.Button(admin_mainpage_frame, text="User Management", command=show_user_management_frame).grid(row=4, column=0, pady=20)
-tk.Button(admin_mainpage_frame, text="Log out", command=lambda: show_frame(login_frame)).grid(row=5, column=0, pady=10)
+ctk.CTkButton(
+    admin_mainpage_frame, 
+    text="New Calculation", 
+    command=lambda: show_frame(New_calculation_frame), 
+    corner_radius=10, 
+    fg_color="#D9D9D9", 
+    text_color="#000000",
+    font=("Inter", 15),
+    width=180, 
+    height=50
+).grid(row=1, column=0, padx=5, sticky="nw")
+
+ctk.CTkButton(
+    admin_mainpage_frame, 
+    text="Calculation History", 
+    command=lambda: show_frame(Calculation_history_frame), 
+    corner_radius=10, 
+    fg_color="#D9D9D9", 
+    text_color="#000000",
+    font=("Inter", 15),
+    width=180, 
+    height=50
+).grid(row=2, column=0, padx=5, sticky="nw")
+
+ctk.CTkButton(
+    admin_mainpage_frame, 
+    text="Price Settings", 
+    command=lambda: show_frame(price_settings_frame), 
+    corner_radius=10, 
+    fg_color="#D9D9D9", 
+    text_color="#000000",
+    font=("Inter", 15),
+    width=180, 
+    height=50
+).grid(row=3, column=0, padx=5, sticky="nw")
+
+ctk.CTkButton(
+    admin_mainpage_frame, 
+    text="User Management", 
+    command=show_user_management_frame, 
+    corner_radius=10, 
+    fg_color="#D9D9D9", 
+    text_color="#000000",
+    font=("Inter", 15),
+    width=180, 
+    height=50
+).grid(row=4, column=0, padx=5, sticky="nw")
+
+ctk.CTkButton(
+    admin_mainpage_frame, 
+    text="Log out", 
+    command=logout, 
+    corner_radius=10, 
+    fg_color="#D9D9D9", 
+    text_color="#000000",
+    font=("Inter", 15),
+    width=180, 
+    height=50
+).grid(row=10, column=0, padx=5, sticky="nw")
+
+for i in range(20):  
+    admin_mainpage_frame.grid_rowconfigure(i, weight=1)
+for i in range(12):
+    admin_mainpage_frame.grid_columnconfigure(i, weight=1)
 
 # New calculation frame
 New_calculation_frame = tk.Frame(root)
-tk.Button(New_calculation_frame, text="Back", command=go_back).grid(row=0, column=0, pady=10, columnspan=2)
+
+ctk.CTkButton(
+    New_calculation_frame, 
+    text="Back", 
+    command=go_back, 
+    corner_radius=10, 
+    fg_color="#D9D9D9", 
+    text_color="#000000",
+    font=("Inter", 15),
+    width=180, 
+    height=50
+).grid(row=10, column=0, padx=5, sticky="nw")
+
+for i in range(20):  
+    New_calculation_frame.grid_rowconfigure(i, weight=1)
+for i in range(12):
+    New_calculation_frame.grid_columnconfigure(i, weight=1)
 
 # Calculation History frame
 Calculation_history_frame = tk.Frame(root)
-tk.Button(Calculation_history_frame, text="Back", command=go_back).grid(row=0, column=0, pady=10, columnspan=2)
 
-# "manage users" for admin login
+ctk.CTkButton(
+    Calculation_history_frame, 
+    text="Back", 
+    command=go_back, 
+    corner_radius=10, 
+    fg_color="#D9D9D9", 
+    text_color="#000000",
+    font=("Inter", 15),
+    width=180, 
+    height=50
+).grid(row=10, column=0, padx=5, sticky="nw")
+
+for i in range(20):  
+    Calculation_history_frame.grid_rowconfigure(i, weight=1)
+for i in range(12):
+    Calculation_history_frame.grid_columnconfigure(i, weight=1)
+
+# Frame for user management
 User_Management_frame = tk.Frame(root)
-tk.Label(User_Management_frame, text="User Settings", font=("Arial", 16)).grid(row=0, column=0, pady=10, columnspan=2)
+#gray frame 
+add_user_frame = tk.Frame(User_Management_frame, width=510, height=650, bg="#D9D9D9", bd=0, relief="solid", highlightbackground="#00A3EE", highlightthickness=2)
+add_user_frame.grid(row=1, column=1, rowspan=10, columnspan=5, padx=10, pady=10, sticky="nsew")
 
-# Username entry for acc creation
-tk.Label(User_Management_frame, text="Username:").grid(row=1, column=0)
-username_entry_user_management = tk.Entry(User_Management_frame)  # New entry
-username_entry_user_management.grid(row=1, column=1)
+tk.Label(add_user_frame, text="New user",font=("Inter", 18), fg="#00A3EE",  bg="#D9D9D9").grid(row=0, column=2, sticky="w", padx=(10, 5))
 
-# Password entry for acc creation
-tk.Label(User_Management_frame, text="Password:").grid(row=2, column=0)
-password_entry_user_management = tk.Entry(User_Management_frame, show="*")  # New entry
-password_entry_user_management.grid(row=2, column=1)
+# Username entry
+username_entry_user_management = ctk.CTkEntry(add_user_frame, font=("Inter", 12), fg_color="#D3D3D3")  # Set default placeholder color
+username_entry_user_management.grid(row=2, column=2, sticky="w", pady=3)
+username_entry_user_management.insert(0, "Enter username")  # Placeholder text
 
-# Role entry for account creation
-tk.Label(User_Management_frame, text="Role:").grid(row=3, column=0)
+# Bind events for username field
+username_entry_user_management.bind("<FocusIn>", lambda event: on_focus_in(username_entry_user_management, "Enter username"))
+username_entry_user_management.bind("<FocusOut>", lambda event: on_focus_out(username_entry_user_management, "Enter username"))
+
+# Password entry
+password_entry_user_management = ctk.CTkEntry(add_user_frame, font=("Inter", 12), show="*", fg_color="#D3D3D3")  # Set default placeholder color
+password_entry_user_management.grid(row=4, column=2, sticky="w", pady=3)
+password_entry_user_management.insert(0, "Enter password")  # Placeholder text
+
+# Bind events for password field
+password_entry_user_management.bind("<FocusIn>", lambda event: on_focus_in(password_entry_user_management, "Enter password"))
+password_entry_user_management.bind("<FocusOut>", lambda event: on_focus_out(password_entry_user_management, "Enter password"))
+
+# Role entry
 role_options = ["Admin", "User"]  # Define available roles
-role_entry = ttk.Combobox(User_Management_frame, values=role_options, state="readonly")
-role_entry.grid(row=3, column=1)
-role_entry.set("Choose Role")  # role entry prompt
+role_entry = ttk.Combobox(add_user_frame, values=role_options,font=("Inter", 12), state="readonly")
+role_entry.grid(row=6, column=2, sticky="w",pady=3)
+role_entry.set("Choose Role")
 
-# Create Treeview
+
+
+tk.Label(
+    User_Management_frame, 
+    text="Registered Users", 
+    font=("Inter", 20), 
+    fg="#D9D9D9",  # Font color
+    bg="#333333"   # Label background color
+).grid(row=1, column=10, columnspan=3, sticky="nsew")
+
+# Treeview with scrollbar
 user_tree = ttk.Treeview(User_Management_frame, columns=("ID", "Username", "Role"), show="headings")
 user_tree.heading("ID", text="ID")
 user_tree.heading("Username", text="Username")
 user_tree.heading("Role", text="Role")
 
-# Set column widths
-user_tree.column("ID", width=50, anchor="center")         # Center align ID column
-user_tree.column("Username", width=200, anchor="center")  # Center align Username column
-user_tree.column("Role", width=100, anchor="center")      # Center align Role column
+# Set column widths and alignment for Treeview
+user_tree.column("ID", width=50, anchor="center")
+user_tree.column("Username", width=200, anchor="center")
+user_tree.column("Role", width=100, anchor="center")
+user_tree.grid(row=3, column=10, rowspan=6, columnspan=3, sticky="nsew")  # Placing Treeview in upper right
 
-user_tree.grid(row=4, column=0, columnspan=2)
-
-# Add scrollbar to users table
+# Add scrollbar for Treeview
 scrollbar = ttk.Scrollbar(User_Management_frame, orient="vertical", command=user_tree.yview)
 user_tree.configure(yscroll=scrollbar.set)
-scrollbar.grid(row=4, column=2, sticky='ns')
 
-# create, delete, edit, refresh, back buttons
-tk.Button(User_Management_frame, text="Create", command=create_acc).grid(row=5, column=0, pady=10)
-tk.Button(User_Management_frame, text="Refresh Users", command=display_users).grid(row=6, column=0, pady=5)
-tk.Button(User_Management_frame, text="Delete User", command=delete_acc).grid(row=7, column=0, pady=5)
-tk.Button(User_Management_frame, text="Edit User", command=edit_acc).grid(row=8, column=0, pady=5)
-tk.Button(User_Management_frame, text="Back", command=go_back).grid(row=9, column=0, pady=10)
+# Place scrollbar in the grid, ensuring it stays within the height of the Treeview
+scrollbar.grid(row=3, column=13, rowspan=6, sticky="nsw")  # The scrollbar aligns with Treeview
+
+# Ensure the frame can stretch and the Treeview + Scrollbar can fill the entire area
+User_Management_frame.grid_rowconfigure(1, weight=1)  # Ensures the first row expands vertically
+User_Management_frame.grid_columnconfigure(10, weight=1)  # Ensures column 10 expands horizontally (for Treeview)
+User_Management_frame.grid_columnconfigure(13, weight=0)  # Scrollbar column doesn't need to expand horizontally
+
+# Optionally, ensure the Treeview expands vertically across the grid row
+User_Management_frame.grid_rowconfigure(1, weight=1) 
+
+# Buttons
+ctk.CTkButton(
+    add_user_frame, 
+    text="Create new user", 
+    command=create_acc, 
+    corner_radius=10, 
+    fg_color="#ffffff", 
+    text_color="#000000",
+    font=("Inter", 15),
+    width=90, 
+    height=30
+).grid(row=7, column=3, padx=5, sticky="e")
+
+ctk.CTkButton(
+    User_Management_frame, 
+    text="Refresh Users", 
+    command=display_users, 
+    corner_radius=10, 
+    fg_color="#D9D9D9", 
+    text_color="#000000",
+    font=("Inter", 15),
+    width=90, 
+    height=30
+).grid(row=10, column=10, padx=5, sticky="nw")
+
+ctk.CTkButton(
+    User_Management_frame, 
+    text="Delete User", 
+    command=delete_acc, 
+    corner_radius=10, 
+    fg_color="#D9D9D9", 
+    text_color="#000000",
+    font=("Inter", 15),
+    width=90, 
+    height=30
+).grid(row=10, column=12, padx=5, sticky="nw")
+
+ctk.CTkButton(
+    User_Management_frame, 
+    text="Edit User", 
+    command=edit_acc, 
+    corner_radius=10, 
+    fg_color="#D9D9D9", 
+    text_color="#000000",
+    font=("Inter", 15),
+    width=90, 
+    height=30
+).grid(row=10, column=11, padx=5, sticky="nw")
+
+ctk.CTkButton(
+    User_Management_frame, 
+    text="Back", 
+    command=go_back, 
+    corner_radius=10, 
+    fg_color="#D9D9D9", 
+    text_color="#000000",
+    font=("Inter", 15),
+    width=180, 
+    height=50
+).grid(row=1, column=0, padx=5, sticky="nw")
+
+ # adjust row/column for user_management_frame
+for i in range(30):  
+    User_Management_frame.grid_rowconfigure(i, weight=1)
+for i in range(15):
+    User_Management_frame.grid_columnconfigure(i, weight=1)
 
 price_settings_frame = tk.Frame(root)
-tk.Button(price_settings_frame, text="Back", command=go_back).grid(row=0, column=0, pady=10, columnspan=2)
+
+ctk.CTkButton(
+    price_settings_frame, 
+    text="Back", 
+    command=go_back, 
+    corner_radius=10, 
+    fg_color="#D9D9D9", 
+    text_color="#000000",
+    font=("Inter", 15),
+    width=180, 
+    height=50
+).grid(row=10, column=0, padx=5, sticky="nw")
+
+
+
+# Optional: Ensure the grid configuration allows the frame to expand properly
+User_Management_frame.grid_rowconfigure(1, weight=1)  # Allow the row with the new frame to expand
+User_Management_frame.grid_columnconfigure(1, weight=1)
 
 frames = [
     background_frame, user_mainpage_frame, admin_mainpage_frame,
@@ -462,10 +709,14 @@ for frame in frames:
     frame.grid(row=0, column=0, sticky="nsew")  # Grid all frames to the same position
     frame.grid_rowconfigure(0, weight=1)  # Allow frames to expand vertically
     frame.grid_columnconfigure(0, weight=1)  # Allow frames to expand horizontally
-    frame.config(background="#333333") # Frame background color
+    frame.config(background="#333333") 
 
 initialize_database()
 show_frame(background_frame)
 root.after(100, lambda: username_entry_login.focus())
 root.after(500, lambda: show_frame(login_frame))
 root.mainloop()
+
+
+
+
