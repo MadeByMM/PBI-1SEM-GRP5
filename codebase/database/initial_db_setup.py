@@ -29,6 +29,7 @@ if inp == 'y':
         cur.execute("DROP TABLE IF EXISTS post_processes;")
         cur.execute("DROP TABLE IF EXISTS operations;")
         cur.execute("DROP TABLE IF EXISTS calculations;")
+        cur.execute("DROP TABLE IF EXISTS combination;")
     except Exception as e:
         print('Error:', e)
 
@@ -44,7 +45,8 @@ if inp == 'y':
                     machine_build_area FLOAT,
                     machine_build_height FLOAT,
                     machine_build_rate INT,
-                    machine_uptime FLOAT
+                    machine_uptime FLOAT,
+                    removal_time_constant FLOAT
                     );""")
 
     except Exception as e:
@@ -55,9 +57,7 @@ if inp == 'y':
         cur.execute("""CREATE TABLE materials (material_id INT PRIMARY KEY,
                     material_name TEXT,
                     material_density FLOAT,
-                    material_cost FLOAT,
-                    in_process INT,
-                    for_machine INT);""")
+                    material_cost FLOAT);""")
     except Exception as e:
         print('Error:', e)
 
@@ -88,14 +88,6 @@ if inp == 'y':
         print('Error:', e)
 
     try:
-        #Create table for storing post-process variables
-        cur.execute("""CREATE TABLE post_processes (post_process_id INT PRIMARY KEY, 
-                    removal_time_constant FLOAT,
-                    for_machine INT);""")
-    except Exception as e:
-        print('Error:', e)
-
-    try:
         #Create table storing operations variables
         cur.execute("""CREATE TABLE operations (operations_id INT PRIMARY KEY, 
                     hours_per_day INT,
@@ -110,42 +102,50 @@ if inp == 'y':
     except Exception as e:
         print('Error:', e)
 
-    #Create table for storing calculations
-    cur.execute("""CREATE TABLE calculations (calculation_id INTEGER PRIMARY KEY AUTOINCREMENT, 
-                date DATETIME DEFAULT CURRENT_TIMESTAMP,
-                project_name VARCHAR,
-                machine_used INT, 
-                material_used INT, 
-                parts_made INT, 
-                builds_done INT, 
-                process_used INT, 
-                post_process_used INT, 
-                operation_used INT, 
-                total_cost FLOAT,
-                average_cost FLOAT);""")
-    
+    try:
+        #Create table for storing calculations
+        cur.execute("""CREATE TABLE calculations (calculation_id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                    date DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    project_name VARCHAR,
+                    machine_used INT, 
+                    material_used INT, 
+                    parts_made INT, 
+                    builds_done INT, 
+                    process_used INT, 
+                    post_process_used INT, 
+                    operation_used INT, 
+                    total_cost FLOAT,
+                    average_cost FLOAT);""")
+    except Exception as e:
+        print('Error:', e)
+
+    try:
+        #Create table for combinations
+        cur.execute(""" CREATE TABLE combination (using_material INT, in_machine INT, 
+                    with_process INT, 
+                    PRIMARY KEY(using_material, in_machine, with_process));""")
+    except Exception as e:
+        print('Error:', e)
 
     #Insert machines into table
-    cur.execute("""INSERT INTO machines (machine_id, machine_name, total_machine_cost, machine_lifetime, cost_of_capital, infrastructure_cost, maintenance_cost, machine_build_area, machine_build_height, machine_build_rate, machine_uptime)
-                VALUES(1, 'Ultimaker 3', 3499, 7, 0.07, 0.05, 0, 462, 20, 29, 0.8);""")
-    cur.execute("""INSERT INTO machines (machine_id, machine_name, total_machine_cost, machine_lifetime, cost_of_capital, infrastructure_cost, maintenance_cost, machine_build_area, machine_build_height, machine_build_rate, machine_uptime)
-                VALUES(2, 'Stratasys Fortus 360mc', 145000, 7, 0.07, 0.05, 0.07, 1441, 41, 61, 0.8);""")
-    cur.execute("""INSERT INTO machines (machine_id, machine_name, total_machine_cost, machine_lifetime, cost_of_capital, infrastructure_cost, maintenance_cost, machine_build_area, machine_build_height, machine_build_rate, machine_uptime)
-                VALUES(3, 'Form 2', 3500, 7, 0.07, 0.35, 0.05, 210, 18, 105, 0.8);""")
-    cur.execute("""INSERT INTO machines (machine_id, machine_name, total_machine_cost, machine_lifetime, cost_of_capital, infrastructure_cost, maintenance_cost, machine_build_area, machine_build_height, machine_build_rate, machine_uptime)
-                VALUES(4, '3D Systems ProX 950', 999000, 7, 0.07, 0.1, 0.05, 11250, 55, 600, 0.8);""")
-    cur.execute("""INSERT INTO machines (machine_id, machine_name, total_machine_cost, machine_lifetime, cost_of_capital, infrastructure_cost, maintenance_cost, machine_build_area, machine_build_height, machine_build_rate, machine_uptime)
-                VALUES(5, 'Figure 4 - Stand Alone', 21700, 7, 0.07, 0.35, 0.05, 87.61, 19.6, 569, 0.8);""")
-    cur.execute("""INSERT INTO machines (machine_id, machine_name, total_machine_cost, machine_lifetime, cost_of_capital, infrastructure_cost, maintenance_cost, machine_build_area, machine_build_height, machine_build_rate, machine_uptime)
-                VALUES(6, 'Figure 4 - Modular', 50000, 7, 0.07, 0.1, 0.05, 87.61, 19.6, 569, 0.8);""")
-    cur.execute("""INSERT INTO machines (machine_id, machine_name, total_machine_cost, machine_lifetime, cost_of_capital, infrastructure_cost, maintenance_cost, machine_build_area, machine_build_height, machine_build_rate, machine_uptime)
-                VALUES(7, 'EOSINT P800', 1055000, 7, 0.07, 0.2, 0.05, 2660, 56, 2774, 0.8);""")
-    cur.execute("""INSERT INTO machines (machine_id, machine_name, total_machine_cost, machine_lifetime, cost_of_capital, infrastructure_cost, maintenance_cost, machine_build_area, machine_build_height, machine_build_rate, machine_uptime)
-                VALUES(8, 'EOSm100', 248000, 7, 0.07, 0.5, 0.05, 79, 10, 5, 0.8);""")
-    cur.execute("""INSERT INTO machines (machine_id, machine_name, total_machine_cost, machine_lifetime, cost_of_capital, infrastructure_cost, maintenance_cost, machine_build_area, machine_build_height, machine_build_rate, machine_uptime)
-                VALUES(9, 'EOSm400-4', 1758000, 7, 0.07, 0.5, 0.05, 1600, 40, 107, 0.8);""")
-    cur.execute("""INSERT INTO machines (machine_id, machine_name, total_machine_cost, machine_lifetime, cost_of_capital, infrastructure_cost, maintenance_cost, machine_build_area, machine_build_height, machine_build_rate, machine_uptime)
-                VALUES(10, '3D System Figure 4', 50000, 7, 0.07, 0.1, 0.05, 87.61, 19.6, 569, 0.8);""")
+    cur.execute("""INSERT INTO machines (machine_id, machine_name, total_machine_cost, machine_lifetime, cost_of_capital, infrastructure_cost, maintenance_cost, machine_build_area, machine_build_height, machine_build_rate, machine_uptime, removal_time_constant)
+                VALUES(1, 'Ultimaker 3', 3499, 7, 0.07, 0.05, 0, 462, 20, 29, 0.8, 0.05);""")
+    cur.execute("""INSERT INTO machines (machine_id, machine_name, total_machine_cost, machine_lifetime, cost_of_capital, infrastructure_cost, maintenance_cost, machine_build_area, machine_build_height, machine_build_rate, machine_uptime, removal_time_constant)
+                VALUES(2, 'Stratasys Fortus 360mc', 145000, 7, 0.07, 0.05, 0.07, 1441, 41, 61, 0.8, 0.03);""")
+    cur.execute("""INSERT INTO machines (machine_id, machine_name, total_machine_cost, machine_lifetime, cost_of_capital, infrastructure_cost, maintenance_cost, machine_build_area, machine_build_height, machine_build_rate, machine_uptime, removal_time_constant)
+                VALUES(3, 'Form 2', 3500, 7, 0.07, 0.35, 0.05, 210, 18, 105, 0.8, 0.08);""")
+    cur.execute("""INSERT INTO machines (machine_id, machine_name, total_machine_cost, machine_lifetime, cost_of_capital, infrastructure_cost, maintenance_cost, machine_build_area, machine_build_height, machine_build_rate, machine_uptime, removal_time_constant)
+                VALUES(4, '3D Systems ProX 950', 999000, 7, 0.07, 0.1, 0.05, 11250, 55, 600, 0.8, 0.05);""")
+    cur.execute("""INSERT INTO machines (machine_id, machine_name, total_machine_cost, machine_lifetime, cost_of_capital, infrastructure_cost, maintenance_cost, machine_build_area, machine_build_height, machine_build_rate, machine_uptime, removal_time_constant)
+                VALUES(5, 'Figure 4 - Stand Alone', 21700, 7, 0.07, 0.35, 0.05, 87.61, 19.6, 569, 0.8, 0.05);""")
+    cur.execute("""INSERT INTO machines (machine_id, machine_name, total_machine_cost, machine_lifetime, cost_of_capital, infrastructure_cost, maintenance_cost, machine_build_area, machine_build_height, machine_build_rate, machine_uptime, removal_time_constant)
+                VALUES(6, 'Figure 4 - Modular', 50000, 7, 0.07, 0.1, 0.05, 87.61, 19.6, 569, 0.8, 0.05);""")
+    cur.execute("""INSERT INTO machines (machine_id, machine_name, total_machine_cost, machine_lifetime, cost_of_capital, infrastructure_cost, maintenance_cost, machine_build_area, machine_build_height, machine_build_rate, machine_uptime, removal_time_constant)
+                VALUES(7, 'EOSINT P800', 1055000, 7, 0.07, 0.2, 0.05, 2660, 56, 2774, 0.8, 0);""")
+    cur.execute("""INSERT INTO machines (machine_id, machine_name, total_machine_cost, machine_lifetime, cost_of_capital, infrastructure_cost, maintenance_cost, machine_build_area, machine_build_height, machine_build_rate, machine_uptime, removal_time_constant)
+                VALUES(8, 'EOSm100', 248000, 7, 0.07, 0.5, 0.05, 79, 10, 5, 0.8, 0.11);""")
+    cur.execute("""INSERT INTO machines (machine_id, machine_name, total_machine_cost, machine_lifetime, cost_of_capital, infrastructure_cost, maintenance_cost, machine_build_area, machine_build_height, machine_build_rate, machine_uptime, removal_time_constant)
+                VALUES(9, 'EOSm400-4', 1758000, 7, 0.07, 0.5, 0.05, 1600, 40, 107, 0.8, 0.11);""")
 
     #Insert processes into table
     cur.execute("""INSERT INTO processes (process_id, process_name, packing_policy, packing_fraction, recycling_fraction, additional_operating_cost, consumable_cost_per_build, first_time_prep, subsequent_prep, time_per_build_setup, time_per_build_removal, time_per_machine_warmup, time_per_machine_cooldown)
@@ -160,17 +160,6 @@ if inp == 'y':
                 VALUES (5, 'SLS', 3, 0.95, 0.9, 0, 1.5, 3, 0, 0.75, 0.5, 0.5, 0.5);""")
     cur.execute("""INSERT INTO processes (process_id, process_name, packing_policy, packing_fraction, recycling_fraction, additional_operating_cost, consumable_cost_per_build, first_time_prep, subsequent_prep, time_per_build_setup, time_per_build_removal, time_per_machine_warmup, time_per_machine_cooldown)
                 VALUES (6, 'SLM', 2, 0.9, 0.9, 20, 25, 3, 0, 0.75, 0.5, 0.5, 0.5);""")
-
-    #Insert post-processes into table
-    cur.execute("""INSERT INTO post_processes (post_process_id, removal_time_constant, for_machine) VALUES (1, 0.05, 1);""")
-    cur.execute("""INSERT INTO post_processes (post_process_id, removal_time_constant, for_machine) VALUES (2, 0.03, 2);""")
-    cur.execute("""INSERT INTO post_processes (post_process_id, removal_time_constant, for_machine) VALUES (3, 0.08, 3);""")
-    cur.execute("""INSERT INTO post_processes (post_process_id, removal_time_constant, for_machine) VALUES (4, 0.05, 4);""")
-    cur.execute("""INSERT INTO post_processes (post_process_id, removal_time_constant, for_machine) VALUES (5, 0.05, 5);""")
-    cur.execute("""INSERT INTO post_processes (post_process_id, removal_time_constant, for_machine) VALUES (6, 0.05, 6);""")
-    cur.execute("""INSERT INTO post_processes (post_process_id, removal_time_constant, for_machine) VALUES (7, 0, 7);""")
-    cur.execute("""INSERT INTO post_processes (post_process_id, removal_time_constant, for_machine) VALUES (8, 0.11, 8);""")
-    cur.execute("""INSERT INTO post_processes (post_process_id, removal_time_constant, for_machine) VALUES (9, 0.11, 9);""")
 
     #Insert operations into table
     cur.execute("""INSERT INTO operations (operations_id, hours_per_day, days_per_week, FTE_per_machine, FTE_build_exchange, FTE_support_removal, salary_engineer, salary_operator, salary_technician, for_machine) 
@@ -193,34 +182,64 @@ if inp == 'y':
                 VALUES(9, 18, 5, 0.15, 1, 1, 70, 50, 30, 9);""")
 
     #Insert materials into table
-    cur.execute("""INSERT INTO materials (material_id, material_name, material_density, material_cost, in_process, for_machine) 
-                VALUES(1, 'ABS', 1.1, 66.66, 3, 1);""")
-    cur.execute("""INSERT INTO materials (material_id, material_name, material_density, material_cost, in_process, for_machine)
-                VALUES(2, 'Ultem', 1.27, 178.86, 3, 2);""")
-    cur.execute("""INSERT INTO materials (material_id, material_name, material_density, material_cost, in_process, for_machine)
-                VALUES(3, 'Clear Resin', 1.18, 126.27, 4, 3);""")
-    cur.execute("""INSERT INTO materials (material_id, material_name, material_density, material_cost, in_process, for_machine)
-                VALUES(4, 'Dental Model Resin', 1.18, 126.27, 4, 3);""")
-    cur.execute("""INSERT INTO materials (material_id, material_name, material_density, material_cost, in_process, for_machine)
-                VALUES(5, 'Accura Xtreme', 1.18, 280, 4, 4);""")
-    cur.execute("""INSERT INTO materials (material_id, material_name, material_density, material_cost, in_process, for_machine)
-                VALUES(6, 'Casting Resing', 1.18, 253.39, 4, 3);""")
-    cur.execute("""INSERT INTO materials (material_id, material_name, material_density, material_cost, in_process, for_machine)
-                VALUES(7, 'PA2200', 0.93, 67.5, 5, 7);""")
-    cur.execute("""INSERT INTO materials (material_id, material_name, material_density, material_cost, in_process, for_machine)
-                VALUES(8, 'PA12', 1.01, 60, 5, 7);""")
-    cur.execute("""INSERT INTO materials (material_id, material_name, material_density, material_cost, in_process, for_machine)
-                VALUES(9, 'Alumide', 1.36, 50, 5, 7);""")
-    cur.execute("""INSERT INTO materials (material_id, material_name, material_density, material_cost, in_process, for_machine)
-                VALUES(10, 'Ti6Al4V', 4.43, 400, 6, 8);""")
-    cur.execute("""INSERT INTO materials (material_id, material_name, material_density, material_cost, in_process, for_machine)
-                VALUES(11, 'Ti6Al4V', 4.43, 400, 6, 9);""")
-    cur.execute("""INSERT INTO materials (material_id, material_name, material_density, material_cost, in_process, for_machine)
-                VALUES(12, 'SSL316', 8, 30, 6, 8);""")
-    cur.execute("""INSERT INTO materials (material_id, material_name, material_density, material_cost, in_process, for_machine)
-                VALUES(13, 'SSL316', 8, 30, 6, 9);""")
-    cur.execute("""INSERT INTO materials (material_id, material_name, material_density, material_cost, in_process, for_machine)
-                VALUES(14, 'Problack 10', 2.6, 250, 1, 10);""")
+    cur.execute("""INSERT INTO materials (material_id, material_name, material_density, material_cost) 
+                VALUES(1, 'ABS', 1.1, 66.66);""")
+    cur.execute("""INSERT INTO materials (material_id, material_name, material_density, material_cost)
+                VALUES(2, 'Ultem', 1.27, 178.86);""")
+    cur.execute("""INSERT INTO materials (material_id, material_name, material_density, material_cost)
+                VALUES(3, 'Clear Resin', 1.18, 126.27);""")
+    cur.execute("""INSERT INTO materials (material_id, material_name, material_density, material_cost)
+                VALUES(4, 'Dental Model Resin', 1.18, 126.27);""")
+    cur.execute("""INSERT INTO materials (material_id, material_name, material_density, material_cost)
+                VALUES(5, 'Accura Xtreme', 1.18, 280);""")
+    cur.execute("""INSERT INTO materials (material_id, material_name, material_density, material_cost)
+                VALUES(6, 'Casting Resing', 1.18, 253.39);""")
+    cur.execute("""INSERT INTO materials (material_id, material_name, material_density, material_cost)
+                VALUES(7, 'PA2200', 0.93, 67.5);""")
+    cur.execute("""INSERT INTO materials (material_id, material_name, material_density, material_cost)
+                VALUES(8, 'PA12', 1.01, 60);""")
+    cur.execute("""INSERT INTO materials (material_id, material_name, material_density, material_cost)
+                VALUES(9, 'Alumide', 1.36, 50);""")
+    cur.execute("""INSERT INTO materials (material_id, material_name, material_density, material_cost)
+                VALUES(10, 'Ti6Al4V', 4.43, 400);""")
+    cur.execute("""INSERT INTO materials (material_id, material_name, material_density, material_cost)
+                VALUES(11, 'Ti6Al4V', 4.43, 400);""")
+    cur.execute("""INSERT INTO materials (material_id, material_name, material_density, material_cost)
+                VALUES(12, 'SSL316', 8, 30);""")
+    cur.execute("""INSERT INTO materials (material_id, material_name, material_density, material_cost)
+                VALUES(14, 'Problack 10', 2.6, 250);""")
+    
+    #Insert combinations
+    cur.execute("""INSERT INTO combination (using_material, in_machine, with_process)
+                VALUES(1, 1, 3);""")
+    cur.execute("""INSERT INTO combination (using_material, in_machine, with_process)
+                VALUES(2, 2, 3);""")
+    cur.execute("""INSERT INTO combination (using_material, in_machine, with_process)
+                VALUES(3, 3, 4);""")
+    cur.execute("""INSERT INTO combination (using_material, in_machine, with_process)
+                VALUES(4, 3, 4);""")
+    cur.execute("""INSERT INTO combination (using_material, in_machine, with_process)
+                VALUES(5, 4, 4);""")
+    cur.execute("""INSERT INTO combination (using_material, in_machine, with_process)
+                VALUES(6, 3, 4);""")
+    cur.execute("""INSERT INTO combination (using_material, in_machine, with_process)
+                VALUES(7, 7, 5);""")
+    cur.execute("""INSERT INTO combination (using_material, in_machine, with_process)
+                VALUES(8, 7, 5);""")
+    cur.execute("""INSERT INTO combination (using_material, in_machine, with_process)
+                VALUES(9, 7, 5);""")
+    cur.execute("""INSERT INTO combination (using_material, in_machine, with_process)
+                VALUES(10, 8, 6);""")
+    cur.execute("""INSERT INTO combination (using_material, in_machine, with_process)
+                VALUES(10, 9, 6);""")
+    cur.execute("""INSERT INTO combination (using_material, in_machine, with_process)
+                VALUES(12, 8, 6);""")
+    cur.execute("""INSERT INTO combination (using_material, in_machine, with_process)
+                VALUES(12, 9, 6);""")
+    cur.execute("""INSERT INTO combination (using_material, in_machine, with_process)
+                VALUES(14, 5, 1);""")
+    cur.execute("""INSERT INTO combination (using_material, in_machine, with_process)
+                VALUES(14, 6, 1);""")
 
     con.commit()
 
