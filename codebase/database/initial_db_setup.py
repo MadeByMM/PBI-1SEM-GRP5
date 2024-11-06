@@ -1,7 +1,16 @@
 import sqlite3
+import os
+
+# Path to the database file
+db_path = 'codebase/database/nexttech_calculator.db'
+
+# Check if the database file exists
+if not os.path.exists(db_path):
+    print(f"Database file {db_path} does not exist.")
+    exit(1)
 
 # Create a connection object that represents the database
-con = sqlite3.connect('database/nexttech_calculator.db')
+con = sqlite3.connect(db_path)
 
 # Create a cursor object that is used to interact with the database
 cur = con.cursor()
@@ -10,7 +19,7 @@ inp = ''
 while inp != 'y' and inp != 'n':
     print("WARNING!!! This will drop all tables and reset the databse to its default state as of 30/10/24")
     inp = input('Are you SURE you want to do this? (y/n): ')
-while inp == 'y':
+if inp == 'y':
     try:
         #Drop tables for clean install
         cur.execute("DROP TABLE IF EXISTS machines;")
@@ -20,21 +29,7 @@ while inp == 'y':
         cur.execute("DROP TABLE IF EXISTS post_processes;")
         cur.execute("DROP TABLE IF EXISTS operations;")
         cur.execute("DROP TABLE IF EXISTS users;")
-    except Exception as e:
-        print('Error:', e)
-
-    try:
-        #Create table for storing user information
-        cur.execute("""CREATE TABLE users (user_id INT PRIMARY KEY, 
-                    username TEXT, password VARCHAR, 
-                    role INT);""")
-    except Exception as e:
-        print('Error:', e)
-
-    try: 
-        #Create table for user roles
-        cur.execute("""CREATE TABLE roles (role_id INT PRIMARY KEY,
-                    role_name TEXT);""")
+        cur.execute("DROP TABLE IF EXISTS roles;")
     except Exception as e:
         print('Error:', e)
 
@@ -215,7 +210,6 @@ while inp == 'y':
 
     con.commit()
 
-while inp == 'n':
+if inp == 'n':
     print('Database reset cancelled')
     con.close()
-    break
