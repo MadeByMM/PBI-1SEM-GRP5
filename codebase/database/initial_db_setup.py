@@ -203,8 +203,6 @@ if inp == 'y':
     cur.execute("""INSERT INTO materials (material_id, material_name, material_density, material_cost)
                 VALUES(10, 'Ti6Al4V', 4.43, 400);""")
     cur.execute("""INSERT INTO materials (material_id, material_name, material_density, material_cost)
-                VALUES(11, 'Ti6Al4V', 4.43, 400);""")
-    cur.execute("""INSERT INTO materials (material_id, material_name, material_density, material_cost)
                 VALUES(12, 'SSL316', 8, 30);""")
     cur.execute("""INSERT INTO materials (material_id, material_name, material_density, material_cost)
                 VALUES(14, 'Problack 10', 2.6, 250);""")
