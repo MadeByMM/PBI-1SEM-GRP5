@@ -115,6 +115,8 @@ def login():
     if user_role:
         messagebox.showinfo("Login successful", f"Welcome {username}!")
         current_username = username 
+        username_entry_login.delete(0, tk.END)
+        password_entry_login.delete(0, tk.END)
         if user_role == "admin":
             show_frame(admin_mainpage_frame)
         else:
@@ -373,6 +375,7 @@ photo_image = ImageTk.PhotoImage(image)
 # Login frame
 login_frame = tk.Frame(background_frame, background="#D9D9D9")
 login_frame.grid(row=3, column=2, columnspan=1, rowspan=1, padx=0, pady=0)
+login_frame.bind("<Return>", lambda event: login())
 
 # Round image button
 image_button = tk.Button(login_frame, image=photo_image, command=on_button_click,bg="#D9D9D9", bd=0, activebackground="#D9D9D9")  # Remove border for a clean look
