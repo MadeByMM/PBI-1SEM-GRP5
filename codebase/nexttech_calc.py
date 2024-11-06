@@ -309,6 +309,9 @@ def create_rounded_rectangle(canvas, x1, y1, x2, y2, radius=25, fill='white', ou
     ]
     return canvas.create_polygon(points, fill=fill, outline=outline, width=width, smooth=True)
 
+def on_button_click():
+    login()
+    
 # MAIN WINDOW
 root = tk.Tk()
 root.title("Nexttech Calculator")
@@ -347,9 +350,19 @@ canvas.grid(row=3, column=2, columnspan=1, rowspan=1, padx=0, pady=0)
 # Draw a rounded rectangle on the canvas for the login frame
 create_rounded_rectangle(canvas, 0, 0, 250, 150, radius=25, fill="#D9D9D9")
 
+# Create an image button
+image_path = "codebase/button login.png"  # Replace with your image file path
+image = Image.open(image_path)
+image = image.resize((75, 40), Image.Resampling.LANCZOS)  # Resize to a button-friendly size
+photo_image = ImageTk.PhotoImage(image)
+
 # Login frame
 login_frame = tk.Frame(background_frame, background="#D9D9D9")
 login_frame.grid(row=3, column=2, columnspan=1, rowspan=1, padx=0, pady=0)
+
+# Round image button
+image_button = tk.Button(login_frame, image=photo_image, command=on_button_click,bg="#D9D9D9", bd=0, activebackground="#D9D9D9")  # Remove border for a clean look
+image_button.grid(row=2, columnspan=2, sticky="e", padx=25)
 
 tk.Label(login_frame, text="Username:",bg="#D9D9D9",font=("Inter", 15)).grid(row=0, column=0, padx=5, pady=5)
 username_entry_login = tk.Entry(login_frame, width=10, font=("Inter", 14))
@@ -359,8 +372,10 @@ tk.Label(login_frame, text="Password:",bg="#D9D9D9",font=("Inter", 15)).grid(row
 password_entry_login = tk.Entry(login_frame, show='*', width=10, font=("Inter", 14))
 password_entry_login.grid(row=1, column=1, padx=5, pady=5)
 
-login_button = tk.Button(login_frame, text="Login",bg="#ffffff",font=("Inter", 15),relief="flat", command=login, width=5)
-login_button.grid(row=2, columnspan=2, sticky="e", padx=25)
+# button down below is deaktivatet and replaced with image button
+
+#login_button = tk.Button(login_frame, text="Login",bg="#ffffff",font=("Inter", 15),relief="flat", command=login, width=5)
+#login_button.grid(row=2, columnspan=2, sticky="e", padx=25)
 
 # Frame for "user" login
 user_mainpage_frame = tk.Frame(root)
@@ -454,8 +469,3 @@ show_frame(background_frame)
 root.after(100, lambda: username_entry_login.focus())
 root.after(500, lambda: show_frame(login_frame))
 root.mainloop()
-
-
-
-
-
