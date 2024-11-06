@@ -2,7 +2,7 @@ import sqlite3
 import os
 
 # Path to the database file
-db_path = 'codebase/database/nexttech_calculator.db'
+db_path = 'database/nexttech_calculator.db'
 
 # Check if the database file exists
 if not os.path.exists(db_path):
@@ -28,8 +28,7 @@ if inp == 'y':
         cur.execute("DROP TABLE IF EXISTS processes;")
         cur.execute("DROP TABLE IF EXISTS post_processes;")
         cur.execute("DROP TABLE IF EXISTS operations;")
-        cur.execute("DROP TABLE IF EXISTS users;")
-        cur.execute("DROP TABLE IF EXISTS roles;")
+        cur.execute("DROP TABLE IF EXISTS calculations;")
     except Exception as e:
         print('Error:', e)
 
@@ -110,6 +109,21 @@ if inp == 'y':
                     for_machine INT);""")
     except Exception as e:
         print('Error:', e)
+
+    #Create table for storing calculations
+    cur.execute("""CREATE TABLE calculations (calculation_id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                date DATETIME DEFAULT CURRENT_TIMESTAMP,
+                project_name VARCHAR,
+                machine_used INT, 
+                material_used INT, 
+                parts_made INT, 
+                builds_done INT, 
+                process_used INT, 
+                post_process_used INT, 
+                operation_used INT, 
+                total_cost FLOAT,
+                average_cost FLOAT);""")
+    
 
     #Insert machines into table
     cur.execute("""INSERT INTO machines (machine_id, machine_name, total_machine_cost, machine_lifetime, cost_of_capital, infrastructure_cost, maintenance_cost, machine_build_area, machine_build_height, machine_build_rate, machine_uptime)
