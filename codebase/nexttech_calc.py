@@ -4,10 +4,10 @@ import tkinter as tk
 from tkinter import messagebox
 from tkinter import ttk
 from contextlib import closing
+from PIL import Image, ImageTk
 import re
 
 # Users database file
-DB_FILE = "codebase/nexttech_users.db"
 con = sqlite3.connect("codebase/nexttech_users.db")
 previous_frame = None
 current_username = ""
@@ -145,6 +145,7 @@ def create_acc():
     if success:
         messagebox.showinfo("Success", f"User '{username}' has been created successfully.")
         display_users()  # Refresh the user list
+        clear_user_management_fields()
 
 # admin command
 def edit_acc():
@@ -265,110 +266,130 @@ def show_frame(frame):
 def clear_user_management_fields():
     username_entry_user_management.delete(0, tk.END)
     password_entry_user_management.delete(0, tk.END)
-    role_entry.delete(0, tk.END)
+    role_entry.set("Choose Role")
+
+# Function to fetch and display users
+def display_users():
+    global con
+    # Clear the current contents of the treeview
+    for row in user_tree.get_children():
+        user_tree.delete(row)
+
+    # Fetch users from the database
+    try:
+        with closing(con.cursor()) as c:
+            c.execute("SELECT id, username, role FROM users")
+            users = c.fetchall()
+            print(f"Debug: Current users in DB: {users}")
+
+            # Insert users into the treeview along with the edit option
+            for user in users:
+                user_tree.insert("", "end", values=user)
+    except sqlite3.Error as e:
+        handle_db_error(e)
+# User management Page
+def show_user_management_frame():
+    display_users()  
+    show_frame(User_Management_frame)
 
 # back button function
 def go_back():
     if previous_frame:
         show_frame(previous_frame)
 
-# Main window setup
+# Function to create a rounded rectangle on a canvas
+# Function to create a rounded rectangle on a canvas
+def create_rounded_rectangle(canvas, x1, y1, x2, y2, radius=25, fill='white', outline='black', width=1):
+    """Create a rounded rectangle on the canvas."""
+    points = [
+        x1+radius, y1, x1, y1, x1, y1+radius, # Top-left corner
+        x1, y2-radius, x1, y2, x1+radius, y2, # Bottom-left corner
+        x2-radius, y2, x2, y2, x2, y2-radius, # Bottom-right corner
+        x2, y1+radius, x2, y1, x2-radius, y1  # Top-right corner
+    ]
+    return canvas.create_polygon(points, fill=fill, outline=outline, width=width, smooth=True)
+
+# MAIN WINDOW
 root = tk.Tk()
 root.title("Nexttech Calculator")
 root.iconbitmap("codebase/next.ico")
-root.geometry("800x600")  # Set initial app window size
+root.geometry("1280x720")  # Set initial app window size
 root.config(background ="#333333" )
+root.grid_rowconfigure(0, weight=1)  # Allow row 0 to expand
+root.grid_columnconfigure(0, weight=1)  # Allow column 0 to expand
+# PARENT FRAMES
 
-# Frames 
-login_frame = tk.Frame(root)
-login_frame.config(background="#D9D9D9")
-login_frame.pack()
-"""
-login_frame = tk.Frame(root, background="#D9D9D9")
-login_frame.place(relx=0.5, rely=0.5, anchor='center')  # Center the frame in the window
+# Parent frame of login_frame
+background_frame = tk.Frame(root, background="#333333")
+background_frame.grid(row=0, column=0, sticky="nsew")
+# Footer text on login page
+footer_label = tk.Label(background_frame, text="IBA Nexttech © 2024 - PBI-1SEM-GRP5", bg="#333333", fg="white", font=("Inter", 8))
+footer_label.grid(row=9, column=2, columnspan=1, pady=(10, 5), sticky="s")
 
-# Set a fixed size for the frame
-login_frame.config(width=230, height=120)
+for i in range(10):
+    background_frame.grid_rowconfigure(i, weight=1) 
+for i in range(5):
+    background_frame.grid_columnconfigure(i, weight=1)
 
-# Add widgets to the login frame (example)
-tk.Label(login_frame, text="Username:").grid(row=0, column=0, padx=5, pady=5)
-username_entry = tk.Entry(login_frame)
-username_entry.grid(row=0, column=1, padx=5, pady=5)
+# Nexttech Logo on login screen
+image = Image.open("codebase/Nexttech logo.png")  
+image = image.resize((108, 108), Image.Resampling.LANCZOS)  # Resize image if needed
+tk_image = ImageTk.PhotoImage(image)
 
-tk.Label(login_frame, text="Password:").grid(row=1, column=0, padx=5, pady=5)
-password_entry = tk.Entry(login_frame, show='*')
-password_entry.grid(row=1, column=1, padx=5, pady=5)
+# Add the image to the frame using a Label
+image_label = tk.Label(background_frame, image=tk_image, bg="#333333")
+image_label.grid(row=2, column=2, padx=0, pady=(0, 20))
 
-login_button = tk.Button(login_frame, text="Login")
-login_button.grid(row=2, columnspan=2, pady=10)
-"""
+# Create a canvas with a rounded rectangle to simulate rounded corners
+canvas = tk.Canvas(background_frame, width=250, height=150, bg="#333333", bd=0, highlightthickness=0)
+canvas.grid(row=3, column=2, columnspan=1, rowspan=1, padx=0, pady=0)
+
+# Draw a rounded rectangle on the canvas for the login frame
+create_rounded_rectangle(canvas, 0, 0, 250, 150, radius=25, fill="#D9D9D9")
+
+# Login frame
+login_frame = tk.Frame(background_frame, background="#D9D9D9")
+login_frame.grid(row=3, column=2, columnspan=1, rowspan=1, padx=0, pady=0)
+
+tk.Label(login_frame, text="Username:",bg="#D9D9D9",font=("Inter", 15)).grid(row=0, column=0, padx=5, pady=5)
+username_entry_login = tk.Entry(login_frame, width=10, font=("Inter", 14))
+username_entry_login.grid(row=0, column=1, padx=5, pady=5)
+
+tk.Label(login_frame, text="Password:",bg="#D9D9D9",font=("Inter", 15)).grid(row=1, column=0, padx=5, pady=5)
+password_entry_login = tk.Entry(login_frame, show='*', width=10, font=("Inter", 14))
+password_entry_login.grid(row=1, column=1, padx=5, pady=5)
+
+login_button = tk.Button(login_frame, text="Login",bg="#ffffff",font=("Inter", 15),relief="flat", command=login, width=5)
+login_button.grid(row=2, columnspan=2, sticky="e", padx=25)
+
+# Frame for "user" login
 user_mainpage_frame = tk.Frame(root)
-user_mainpage_frame.config(background="#D9D9D9")
+tk.Label(user_mainpage_frame, text="User Main Page", font=("Arial", 16)).grid(row=0, column=0, pady=10)
 
+tk.Button(user_mainpage_frame, text="New Calculation", command=lambda: show_frame(New_calculation_frame)).grid(row=1, column=0, pady=20)
+tk.Button(user_mainpage_frame, text="Calculation History", command= lambda: show_frame(Calculation_history_frame)).grid(row=2, column=0, pady=20)
+tk.Button(user_mainpage_frame, text="Log out", command=lambda: show_frame(login_frame)).grid(row=3, column=0, pady=10)
+
+# Frame for "admin" login
 admin_mainpage_frame = tk.Frame(root)
-admin_mainpage_frame.config(background="#D9D9D9")
+tk.Label(admin_mainpage_frame, text="Admin Main Page", font=("Arial", 16)).grid(row=0, column=0, pady=10)
 
+tk.Button(admin_mainpage_frame, text="New Calculation", command=lambda: show_frame(New_calculation_frame)).grid(row=1, column=0, pady=20)
+tk.Button(admin_mainpage_frame, text="Calculation History", command=lambda: show_frame(Calculation_history_frame)).grid(row=2, column=0, pady=20)
+tk.Button(admin_mainpage_frame, text="Price Settings", command= lambda: show_frame(price_settings_frame)).grid(row=3, column=0, pady=20)
+tk.Button(admin_mainpage_frame, text="User Management", command=show_user_management_frame).grid(row=4, column=0, pady=20)
+tk.Button(admin_mainpage_frame, text="Log out", command=lambda: show_frame(login_frame)).grid(row=5, column=0, pady=10)
+
+# New calculation frame
 New_calculation_frame = tk.Frame(root)
-New_calculation_frame.config(background="#D9D9D9")
+tk.Button(New_calculation_frame, text="Back", command=go_back).grid(row=0, column=0, pady=10, columnspan=2)
 
+# Calculation History frame
 Calculation_history_frame = tk.Frame(root)
-Calculation_history_frame.config(background="#D9D9D9")
+tk.Button(Calculation_history_frame, text="Back", command=go_back).grid(row=0, column=0, pady=10, columnspan=2)
 
+# "manage users" for admin login
 User_Management_frame = tk.Frame(root)
-User_Management_frame.config(background="#D9D9D9")
-
-price_settings_frame = tk.Frame(root)
-price_settings_frame.config(background="#D9D9D9")
-
-frames = [
-    login_frame, user_mainpage_frame, admin_mainpage_frame,
-    New_calculation_frame, Calculation_history_frame,
-    User_Management_frame, price_settings_frame
-    ]
-
-for frame in frames:
-    frame.grid(row=0, column=0, sticky="nsew")
-
-# Login screen setup
-tk.Label(login_frame, text="Login", font=("Arial", 16)).pack(pady=10)
-tk.Label(login_frame, text="Username:").pack()
-username_entry_login = tk.Entry(login_frame) 
-username_entry_login.pack()
-
-tk.Label(login_frame, text="Password:").pack()
-password_entry_login = tk.Entry(login_frame, show="*") 
-password_entry_login.pack()
-
-tk.Button(login_frame, text="Login", command=login).pack(pady=20)
-
-# User Main Page
-def show_user_management_frame():
-    display_users()  
-    show_frame(User_Management_frame)
-
-tk.Label(user_mainpage_frame, text="User Main Page", font=("Arial", 16)).pack(pady=10)
-tk.Button(user_mainpage_frame, text="New Calculation", command=lambda: show_frame(New_calculation_frame)).pack(pady=20)
-tk.Button(user_mainpage_frame, text="Calculation History", command= lambda: show_frame(Calculation_history_frame)).pack(pady=20)
-tk.Button(user_mainpage_frame, text="Log out", command=lambda: show_frame(login_frame)).pack(pady=10)
-
-# Admin Main Page
-tk.Label(admin_mainpage_frame, text="Admin Main Page", font=("Arial", 16)).pack(pady=10)
-tk.Button(admin_mainpage_frame, text="New Calculation", command=lambda: show_frame(New_calculation_frame)).pack(pady=20)
-tk.Button(admin_mainpage_frame, text="Calculation History", command=lambda: show_frame(Calculation_history_frame)).pack(pady=20)
-tk.Button(admin_mainpage_frame, text="Price Settings", command= lambda: show_frame(price_settings_frame)).pack(pady=20)
-tk.Button(admin_mainpage_frame, text="User Management", command=show_user_management_frame).pack(pady=20)
-tk.Button(admin_mainpage_frame, text="Log out", command=lambda: show_frame(login_frame)).pack(pady=10)
-
-# New Calculation page
-tk.Button(New_calculation_frame, text="Back", command=go_back).pack(pady=10)
-
-# Calculation History page
-tk.Button(Calculation_history_frame, text="Back", command=go_back).pack(pady=10)
-
-# admin - price settings page
-tk.Button(price_settings_frame, text="Back", command=go_back).pack(pady=10)
-
-# USER MANAGEMENT FRAME
 tk.Label(User_Management_frame, text="User Settings", font=("Arial", 16)).grid(row=0, column=0, pady=10, columnspan=2)
 
 # Username entry for acc creation
@@ -406,37 +427,32 @@ scrollbar = ttk.Scrollbar(User_Management_frame, orient="vertical", command=user
 user_tree.configure(yscroll=scrollbar.set)
 scrollbar.grid(row=4, column=2, sticky='ns')
 
-# Function to fetch and display users
-def display_users():
-    global con
-    # Clear the current contents of the treeview
-    for row in user_tree.get_children():
-        user_tree.delete(row)
-
-    # Fetch users from the database
-    try:
-        with closing(con.cursor()) as c:
-            c.execute("SELECT id, username, role FROM users")
-            users = c.fetchall()
-            print(f"Debug: Current users in DB: {users}")
-
-            # Insert users into the treeview along with the edit option
-            for user in users:
-                user_tree.insert("", "end", values=user)
-    except sqlite3.Error as e:
-        handle_db_error(e)
-
 # create, delete, edit, refresh, back buttons
-# Add buttons using grid manager
 tk.Button(User_Management_frame, text="Create", command=create_acc).grid(row=5, column=0, pady=10)
 tk.Button(User_Management_frame, text="Refresh Users", command=display_users).grid(row=6, column=0, pady=5)
 tk.Button(User_Management_frame, text="Delete User", command=delete_acc).grid(row=7, column=0, pady=5)
 tk.Button(User_Management_frame, text="Edit User", command=edit_acc).grid(row=8, column=0, pady=5)
 tk.Button(User_Management_frame, text="Back", command=go_back).grid(row=9, column=0, pady=10)
 
+price_settings_frame = tk.Frame(root)
+tk.Button(price_settings_frame, text="Back", command=go_back).grid(row=0, column=0, pady=10, columnspan=2)
+
+frames = [
+    background_frame, user_mainpage_frame, admin_mainpage_frame,
+    New_calculation_frame, Calculation_history_frame,
+    User_Management_frame, price_settings_frame
+    ]
+# POSITION PARENT FRAMES IN ROOT, ALLOW THEM EXPAND WITH ROOT, BG COLOR
+for frame in frames:
+    frame.grid(row=0, column=0, sticky="nsew")  # Grid all frames to the same position
+    frame.grid_rowconfigure(0, weight=1)  # Allow frames to expand vertically
+    frame.grid_columnconfigure(0, weight=1)  # Allow frames to expand horizontally
+    frame.config(background="#333333") # Frame background color
+
 initialize_database()
-show_frame(login_frame)
-username_entry_login.focus() 
+show_frame(background_frame)
+root.after(100, lambda: username_entry_login.focus())
+root.after(500, lambda: show_frame(login_frame))
 root.mainloop()
 
 
