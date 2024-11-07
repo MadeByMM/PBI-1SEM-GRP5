@@ -328,6 +328,26 @@ def on_focus_out(entry, placeholder_text):
         entry.insert(0, placeholder_text)
         entry.configure(fg_color="#D3D3D3")
 
+def connect_db():
+    conn = sqlite3.connect("codebase/nexttech_users.db")
+    return conn.cursor()
+
+# Function to search the Treeview based on query
+def search_treeview(query):
+    # Clear current entries in the Treeview
+    for item in user_tree.get_children():
+        user_tree.delete(item)
+    
+    # Query the database for users matching the search query
+    cursor = connect_db()
+    cursor.execute("SELECT id, username, role FROM users WHERE username LIKE ? OR role LIKE ?", ('%' + query + '%', '%' + query + '%'))
+    rows = cursor.fetchall()
+
+    # Insert matching rows into the Treeview
+    for row in rows:
+        user_tree.insert("", "end", values=row)
+
+
 # MAIN WINDOW
 root = tk.Tk()
 root.title("Nexttech Calculator")
@@ -550,13 +570,13 @@ for i in range(12):
 User_Management_frame = tk.Frame(root)
 #gray frame 
 add_user_frame = tk.Frame(User_Management_frame, width=510, height=650, bg="#D9D9D9", bd=0, relief="solid", highlightbackground="#00A3EE", highlightthickness=2)
-add_user_frame.grid(row=1, column=1, rowspan=10, columnspan=5, padx=10, pady=10, sticky="nsew")
+add_user_frame.grid(row=1, column=1, rowspan=28, columnspan=8, padx=10, pady=10, sticky="nsew")
 
-tk.Label(add_user_frame, text="New user",font=("Inter", 18), fg="#00A3EE",  bg="#D9D9D9").grid(row=0, column=2, sticky="w", padx=(10, 5))
+tk.Label(add_user_frame, text="New user",font=("Inter", 18), fg="#00A3EE",  bg="#D9D9D9").grid(row=0, column=2, sticky="w", padx=(10, 5), pady=20)
 
 # Username entry
-username_entry_user_management = ctk.CTkEntry(add_user_frame, font=("Inter", 12), fg_color="#D3D3D3")  # Set default placeholder color
-username_entry_user_management.grid(row=2, column=2, sticky="w", pady=3)
+username_entry_user_management = ctk.CTkEntry(add_user_frame, font=("Inter", 12), fg_color="#FFFFFF")  # Set default placeholder color
+username_entry_user_management.grid(row=2, column=2, sticky="w", pady=5)
 username_entry_user_management.insert(0, "Enter username")  # Placeholder text
 
 # Bind events for username field
@@ -564,9 +584,9 @@ username_entry_user_management.bind("<FocusIn>", lambda event: on_focus_in(usern
 username_entry_user_management.bind("<FocusOut>", lambda event: on_focus_out(username_entry_user_management, "Enter username"))
 
 # Password entry
-password_entry_user_management = ctk.CTkEntry(add_user_frame, font=("Inter", 12), show="*", fg_color="#D3D3D3")  # Set default placeholder color
-password_entry_user_management.grid(row=4, column=2, sticky="w", pady=3)
-password_entry_user_management.insert(0, "Enter password")  # Placeholder text
+password_entry_user_management = ctk.CTkEntry(add_user_frame, font=("Inter", 12), fg_color="#FFFFFF")  
+password_entry_user_management.grid(row=4, column=2, sticky="w", pady=5)
+password_entry_user_management.insert(0, "Enter password")  
 
 # Bind events for password field
 password_entry_user_management.bind("<FocusIn>", lambda event: on_focus_in(password_entry_user_management, "Enter password"))
@@ -575,10 +595,8 @@ password_entry_user_management.bind("<FocusOut>", lambda event: on_focus_out(pas
 # Role entry
 role_options = ["Admin", "User"]  # Define available roles
 role_entry = ttk.Combobox(add_user_frame, values=role_options,font=("Inter", 12), state="readonly")
-role_entry.grid(row=6, column=2, sticky="w",pady=3)
+role_entry.grid(row=6, column=2, sticky="w",pady=5)
 role_entry.set("Choose Role")
-
-
 
 tk.Label(
     User_Management_frame, 
@@ -588,8 +606,30 @@ tk.Label(
     bg="#333333"   # Label background color
 ).grid(row=1, column=10, columnspan=3, sticky="nsew")
 
+# Search
+placeholder_text = "Search in users"
+search_entry = ctk.CTkEntry(User_Management_frame, font=("Inter", 14), fg_color="#FFFFFF")
+search_entry.grid(row=2, column=10, pady=5, sticky="nsew")
+search_entry.insert(0, placeholder_text)
+
+# Bind focus in and out events for placeholder functionality
+search_entry.bind("<FocusIn>", lambda event: on_focus_in(search_entry, placeholder_text))
+search_entry.bind("<FocusOut>", lambda event: on_focus_out(search_entry, placeholder_text))
+
+style = ttk.Style()
+style.configure("Custom.Treeview", font=("Inter", 12))  # Set font and size
+style.configure("Custom.Treeview.Heading", font=("Inter", 14, "bold"))  # Header font
+
+# Customizing Treeview
+style.map("Custom.Treeview", background=[("selected", "#D9D9D9")])  # Row selection color
+style.configure("Custom.Treeview", background="#D9D9D9", fieldbackground="#D9D9D9")  # Default row and cell background
+
+# Customizing Treeview Header
+style.configure("Custom.Treeview.Heading", foreground="#000000", font=("Inter", 14))  # Header background color and text color
+style.map("Custom.Treeview.Heading", background=[("active", "#000000")])  # Active header color
+
 # Treeview with scrollbar
-user_tree = ttk.Treeview(User_Management_frame, columns=("ID", "Username", "Role"), show="headings")
+user_tree = ttk.Treeview(User_Management_frame, style="Custom.Treeview", columns=("ID", "Username", "Role"), show="headings")
 user_tree.heading("ID", text="ID")
 user_tree.heading("Username", text="Username")
 user_tree.heading("Role", text="Role")
@@ -600,12 +640,15 @@ user_tree.column("Username", width=200, anchor="center")
 user_tree.column("Role", width=100, anchor="center")
 user_tree.grid(row=3, column=10, rowspan=6, columnspan=3, sticky="nsew")  # Placing Treeview in upper right
 
+search_entry.bind("<KeyRelease>", lambda event: search_treeview(search_entry.get()))
+
 # Add scrollbar for Treeview
 scrollbar = ttk.Scrollbar(User_Management_frame, orient="vertical", command=user_tree.yview)
 user_tree.configure(yscroll=scrollbar.set)
 
 # Place scrollbar in the grid, ensuring it stays within the height of the Treeview
 scrollbar.grid(row=3, column=13, rowspan=6, sticky="nsw")  # The scrollbar aligns with Treeview
+style.configure("TScrollbar", gripcount=0, background="#00A3EE", troughcolor="#D9D9D9", bordercolor="#00A3EE")
 
 # Ensure the frame can stretch and the Treeview + Scrollbar can fill the entire area
 User_Management_frame.grid_rowconfigure(1, weight=1)  # Ensures the first row expands vertically
@@ -626,7 +669,7 @@ ctk.CTkButton(
     font=("Inter", 15),
     width=90, 
     height=30
-).grid(row=7, column=3, padx=5, sticky="e")
+).grid(row=7, column=2, padx=5,pady=10,sticky="e")
 
 ctk.CTkButton(
     User_Management_frame, 
@@ -682,6 +725,9 @@ for i in range(30):
 for i in range(15):
     User_Management_frame.grid_columnconfigure(i, weight=1)
 
+for i in range(5):
+    add_user_frame.grid_columnconfigure(i, weight=1)
+
 price_settings_frame = tk.Frame(root)
 
 ctk.CTkButton(
@@ -696,7 +742,10 @@ ctk.CTkButton(
     height=50
 ).grid(row=10, column=0, padx=5, sticky="nw")
 
-
+for i in range(20):  
+    price_settings_frame.grid_rowconfigure(i, weight=1)
+for i in range(12):
+    price_settings_frame.grid_columnconfigure(i, weight=1)
 
 # Optional: Ensure the grid configuration allows the frame to expand properly
 User_Management_frame.grid_rowconfigure(1, weight=1)  # Allow the row with the new frame to expand
