@@ -347,7 +347,6 @@ def search_treeview(query):
     for row in rows:
         user_tree.insert("", "end", values=row)
 
-
 # MAIN WINDOW
 root = tk.Tk()
 root.title("Nexttech Calculator")
@@ -729,6 +728,9 @@ for i in range(5):
     add_user_frame.grid_columnconfigure(i, weight=1)
 
 price_settings_frame = tk.Frame(root)
+#gray frame 
+price_change_frame = tk.Frame(price_settings_frame, width=510, height=650, bg="#D9D9D9", bd=0, relief="solid", highlightbackground="#00A3EE", highlightthickness=2)
+price_change_frame.grid(row=1, column=1, rowspan=28, columnspan=2, padx=10, pady=10, sticky="nsew")
 
 ctk.CTkButton(
     price_settings_frame, 
@@ -742,14 +744,10 @@ ctk.CTkButton(
     height=50
 ).grid(row=10, column=0, padx=5, sticky="nw")
 
-for i in range(20):  
+for i in range(30):  
     price_settings_frame.grid_rowconfigure(i, weight=1)
-for i in range(12):
+for i in range(15):
     price_settings_frame.grid_columnconfigure(i, weight=1)
-
-# Optional: Ensure the grid configuration allows the frame to expand properly
-User_Management_frame.grid_rowconfigure(1, weight=1)  # Allow the row with the new frame to expand
-User_Management_frame.grid_columnconfigure(1, weight=1)
 
 frames = [
     background_frame, user_mainpage_frame, admin_mainpage_frame,
@@ -768,7 +766,3 @@ show_frame(background_frame)
 root.after(100, lambda: username_entry_login.focus())
 root.after(500, lambda: show_frame(login_frame))
 root.mainloop()
-
-
-
-
