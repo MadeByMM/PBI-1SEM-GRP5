@@ -347,6 +347,210 @@ def search_treeview(query):
     for row in rows:
         user_tree.insert("", "end", values=row)
 
+# Function to connect to the database and fetch all machines data
+def fetch_machines():
+    with closing(sqlite3.connect("codebase/nexttech_calculator.db")) as conn:
+        with closing(conn.cursor()) as cursor:
+            cursor.execute("SELECT * FROM machines")
+            machines = cursor.fetchall()
+    return machines
+
+# Function to fetch attributes of the selected machine
+def fetch_machine_attributes(selected_machine):
+    with closing(sqlite3.connect("codebase/nexttech_calculator.db")) as conn:
+        with closing(conn.cursor()) as cursor:
+            cursor.execute("SELECT * FROM machines WHERE Machine_Name=?", (selected_machine,))
+            machine_attributes = cursor.fetchone()
+    return machine_attributes
+
+# Function to fetch column names from the 'machines' table
+def fetch_machine_columns():
+    with closing(sqlite3.connect("codebase/nexttech_calculator.db")) as conn:
+        with closing(conn.cursor()) as cursor:
+            cursor.execute("PRAGMA table_info(machines)")
+            columns_machine = cursor.fetchall()
+    return [column[1] for column in columns_machine]  # Extracting the column names
+
+# Function to create a Treeview for the selected machine
+def populate_machine_treeview(frame, machine_data):
+
+     # Clear existing data
+    for row in machine_tree.get_children():
+        machine_tree.delete(row)
+
+    # Fetch the column names
+    attribute_names = fetch_machine_columns()
+    for i, attribute_name in enumerate(attribute_names):
+        # Replace underscores with spaces in attribute names
+        attribute_display_name = attribute_name.replace("_", " ")
+        attribute_value = machine_data[i]  # Access each attribute's value directly from the tuple
+        machine_tree.insert("", "end", values=(attribute_display_name, attribute_value))
+    
+def on_machine_selected(event):
+    selected_machine = combobox_machine.get()
+    machine_data = fetch_machine_attributes(selected_machine)
+    
+    print(f"Debug: Machine data fetched: {machine_data}")  # Check the fetched data
+    
+    if machine_data:
+        populate_machine_treeview(frame, machine_data)
+    else:
+        messagebox.showerror("Error", "Machine not found.")
+
+# Function to create a new machine (prompt entry fields for every attribute)
+def create_new_machine():
+    machine_columns = fetch_machine_columns()  # Get column names from the table
+    entry_fields = {}
+
+    # Create a new window to prompt for the machine attributes
+    create_window = tk.Toplevel(root)
+    create_window.title("Create New Machine")
+
+    # Dynamically create labels and entry fields for each column in the 'machines' table
+    row = 0
+    for column in machine_columns[1:]:  # Skip the ID column (usually the first column)
+        label = tk.Label(create_window, text=column.replace("_", " ").title() + ":")
+        label.grid(row=row, column=0, padx=10, pady=5, sticky="w")
+        
+        entry = tk.Entry(create_window)
+        entry.grid(row=row, column=1, padx=10, pady=5)
+        
+        entry_fields[column] = entry
+        row += 1
+
+    # Button to save the new machine to the database
+    def save_new_machine():
+        # Collect all values from the entry fields
+        values = [entry.get() for entry in entry_fields.values()]
+
+        if all(values):  # Ensure all fields are filled
+            machine_name = values[0]  # Assuming that Machine_Name is the first column
+
+            # Check if the machine name already exists
+            with closing(sqlite3.connect("codebase/nexttech_calculator.db")) as conn:
+                with closing(conn.cursor()) as cursor:
+                    cursor.execute("SELECT COUNT(*) FROM machines WHERE Machine_Name = ?", (machine_name,))
+                    count = cursor.fetchone()[0]
+
+                    if count > 0:  # Machine name already exists
+                        messagebox.showerror("Error", f"A machine with the name '{machine_name}' already exists.")
+                        return
+
+            # Create the insert statement dynamically
+            column_names = ', '.join(entry_fields.keys())  # Join column names with commas
+            placeholders = ', '.join(['?'] * len(entry_fields))  # Create placeholders for each field
+
+            # Prepare the insert statement
+            insert_query = f"INSERT INTO machines ({column_names}) VALUES ({placeholders})"
+            
+            with closing(sqlite3.connect("codebase/nexttech_calculator.db")) as conn:
+                with closing(conn.cursor()) as cursor:
+                    cursor.execute(insert_query, values)  # Pass values to be inserted
+                    conn.commit()
+
+            messagebox.showinfo("Success", "Machine created successfully.")
+            create_window.destroy()  # Close the window after success
+        else:
+            messagebox.showerror("Error", "All fields must be filled.")
+
+    save_button = tk.Button(create_window, text="Save", command=save_new_machine)
+    save_button.grid(row=row, column=0, columnspan=2, pady=10)
+
+# Function to edit an existing machine (prompt entry fields for every attribute)
+def edit_machine():
+    selected_machine = combobox_machine.get()
+
+    if selected_machine:
+        machine_columns = fetch_machine_columns()  # Get column names
+        machine_data = fetch_machine_attributes(selected_machine)  # Fetch existing data
+
+        if machine_data:
+            # Create a new window to prompt for the machine attributes
+            edit_window = tk.Toplevel(root)
+            edit_window.title(f"Edit Machine - {selected_machine}")
+
+            entry_fields = {}
+
+            # Dynamically create labels and entry fields for each column in the 'machines' table
+            row = 0
+            for idx, column in enumerate(machine_columns[1:]):  # Skip the ID column (usually the first column)
+                label = tk.Label(edit_window, text=column.replace("_", " ").title() + ":")
+                label.grid(row=row, column=0, padx=10, pady=5, sticky="w")
+                
+                entry = tk.Entry(edit_window)
+                entry.insert(0, machine_data[idx + 1])  # Set the initial value to the existing data
+                entry.grid(row=row, column=1, padx=10, pady=5)
+                
+                entry_fields[column] = entry
+                row += 1
+
+            # Button to save the edited machine to the database
+            def save_edited_machine():
+                values = [entry.get() for entry in entry_fields.values()]
+                if all(values):  # Ensure all fields are filled
+                    new_machine_name = values[0]  # Assuming Machine_Name is the first field
+
+                    # Check if the new machine name already exists (except for the selected machine)
+                    with closing(sqlite3.connect("codebase/nexttech_calculator.db")) as conn:
+                        with closing(conn.cursor()) as cursor:
+                            cursor.execute(
+                                "SELECT COUNT(*) FROM machines WHERE Machine_Name = ? AND Machine_Name != ?",
+                                (new_machine_name, selected_machine)
+                            )
+                            count = cursor.fetchone()[0]
+
+                            if count > 0:  # New machine name already exists
+                                messagebox.showerror("Error", f"A machine with the name '{new_machine_name}' already exists.")
+                                return
+
+                            # Dynamically create the update query to update all fields
+                            set_clause = ", ".join([f"{column} = ?" for column in machine_columns[1:]])  # Skip the ID column
+                            cursor.execute(
+                                f"UPDATE machines SET {set_clause} WHERE Machine_Name = ?",
+                                (*values, selected_machine)  # Pass all the values and selected machine name
+                            )
+                            conn.commit()
+
+                    messagebox.showinfo("Success", "Machine updated successfully.")
+                    edit_window.destroy()
+                else:
+                    messagebox.showerror("Error", "All fields must be filled.")
+
+            save_button = tk.Button(edit_window, text="Save", command=save_edited_machine)
+            save_button.grid(row=row, column=0, columnspan=2, pady=10)
+        else:
+            messagebox.showerror("Error", "Machine not found.")
+    else:
+        messagebox.showerror("Error", "No machine selected to edit.")
+
+
+# Function to delete a machine
+def delete_machine():
+    selected_machine = combobox_machine.get()
+
+    if selected_machine:
+        # Fetch the machine data to ensure it's the correct one
+        machine_data = fetch_machine_attributes(selected_machine)
+        
+        if machine_data:
+            # Confirm deletion with a message box
+            confirm = messagebox.askyesno("Delete Machine", f"Are you sure you want to delete the machine '{selected_machine}'?")
+            
+            if confirm:
+                with closing(sqlite3.connect("codebase/nexttech_calculator.db")) as conn:
+                    with closing(conn.cursor()) as cursor:
+                        # Delete the selected machine based on the Machine_Name
+                        cursor.execute("DELETE FROM machines WHERE Machine_Name = ?", (selected_machine,))
+                        conn.commit()
+                
+                messagebox.showinfo("Success", "Machine deleted successfully.")
+            else:
+                messagebox.showinfo("Canceled", "Machine deletion canceled.")
+        else:
+            messagebox.showerror("Error", "Machine not found.")
+    else:
+        messagebox.showerror("Error", "No machine selected to delete.")
+
 # MAIN WINDOW
 root = tk.Tk()
 root.title("Nexttech Calculator")
@@ -642,11 +846,11 @@ user_tree.grid(row=3, column=10, rowspan=6, columnspan=3, sticky="nsew")  # Plac
 search_entry.bind("<KeyRelease>", lambda event: search_treeview(search_entry.get()))
 
 # Add scrollbar for Treeview
-scrollbar = ttk.Scrollbar(User_Management_frame, orient="vertical", command=user_tree.yview)
-user_tree.configure(yscroll=scrollbar.set)
+user_scrollbar = ttk.Scrollbar(User_Management_frame, orient="vertical", command=user_tree.yview)
+user_tree.configure(yscroll=user_scrollbar.set)
 
 # Place scrollbar in the grid, ensuring it stays within the height of the Treeview
-scrollbar.grid(row=3, column=13, rowspan=6, sticky="nsw")  # The scrollbar aligns with Treeview
+user_scrollbar.grid(row=3, column=13, rowspan=6, sticky="nsw")  # The scrollbar aligns with Treeview
 style.configure("TScrollbar", gripcount=0, background="#00A3EE", troughcolor="#D9D9D9", bordercolor="#00A3EE")
 
 # Ensure the frame can stretch and the Treeview + Scrollbar can fill the entire area
@@ -728,9 +932,10 @@ for i in range(5):
     add_user_frame.grid_columnconfigure(i, weight=1)
 
 price_settings_frame = tk.Frame(root)
-#gray frame 
-price_change_frame = tk.Frame(price_settings_frame, width=510, height=650, bg="#D9D9D9", bd=0, relief="solid", highlightbackground="#00A3EE", highlightthickness=2)
-price_change_frame.grid(row=1, column=1, rowspan=28, columnspan=2, padx=10, pady=10, sticky="nsew")
+for i in range(30):  
+    price_settings_frame.grid_rowconfigure(i, weight=1)
+for i in range(15):
+    price_settings_frame.grid_columnconfigure(i, weight=1)
 
 ctk.CTkButton(
     price_settings_frame, 
@@ -744,11 +949,6 @@ ctk.CTkButton(
     height=50
 ).grid(row=10, column=0, padx=5, sticky="nw")
 
-for i in range(30):  
-    price_settings_frame.grid_rowconfigure(i, weight=1)
-for i in range(15):
-    price_settings_frame.grid_columnconfigure(i, weight=1)
-
 frames = [
     background_frame, user_mainpage_frame, admin_mainpage_frame,
     New_calculation_frame, Calculation_history_frame,
@@ -760,6 +960,52 @@ for frame in frames:
     frame.grid_rowconfigure(0, weight=1)  # Allow frames to expand vertically
     frame.grid_columnconfigure(0, weight=1)  # Allow frames to expand horizontally
     frame.config(background="#333333") 
+
+price_change_frame = tk.Frame(price_settings_frame, width=510, height=650, bg="#D9D9D9", bd=0, relief="solid",highlightcolor="#00A3EE", highlightbackground="#00A3EE", highlightthickness=2)
+price_change_frame.grid(row=1, column=1, rowspan=28, columnspan=2, padx=10, pady=10, sticky="nsew")
+price_change_frame.grid_propagate(False)
+
+for i in range(30):  
+    price_change_frame.grid_rowconfigure(i, weight=1)
+for i in range(15):
+    price_change_frame.grid_columnconfigure(i, weight=1)
+
+machines = fetch_machines()
+machine_names = [machine[1] for machine in machines]  
+
+# Combobox to select machine (placed in price_change_frame)
+combobox_machine = ttk.Combobox(price_change_frame, values=machine_names, state="readonly")
+combobox_machine.grid(row=0, column=1, padx=10, pady=10)
+combobox_machine.set("Select printer")
+combobox_machine.bind("<<ComboboxSelected>>", on_machine_selected)
+
+# Frame to hold the Treeview and scrollbar
+treeview_frame = tk.Frame(price_change_frame)
+treeview_frame.grid(row=2, column=0, columnspan=3, padx=10, pady=10, sticky="nsew")
+treeview_frame.grid_rowconfigure(0, weight=1)
+treeview_frame.grid_columnconfigure(0, weight=1)
+
+# machine treeview
+columns_machine = ["Attribute", "Value"]
+machine_tree = ttk.Treeview(treeview_frame, columns=columns_machine, show="headings", height=6)
+machine_tree.heading("Attribute", text="Attribute")
+machine_tree.heading("Value", text="Value")
+machine_tree.grid(row=0, column=0, sticky="nsew")
+
+# Machine scrollbar
+machine_scrollbar = ttk.Scrollbar(treeview_frame, orient="vertical", command=machine_tree.yview)
+machine_tree.configure(yscroll=machine_scrollbar.set)
+machine_scrollbar.grid(row=0, column=1, sticky="ns")
+
+# machine buttons
+create_button_machine = tk.Button(price_change_frame, text="Create Machine", command=create_new_machine)
+create_button_machine.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
+
+edit_button_machine = tk.Button(price_change_frame, text="Edit Machine", command=edit_machine)
+edit_button_machine.grid(row=1, column=1, padx=10, pady=10, sticky="nsew")
+
+delete_button_machine = tk.Button(price_change_frame, text="Delete Machine", command=delete_machine)
+delete_button_machine.grid(row=1, column=2, padx=10, pady=10, sticky="nsew")
 
 initialize_database()
 show_frame(background_frame)
