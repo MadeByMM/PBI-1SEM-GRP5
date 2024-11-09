@@ -8,6 +8,9 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import sqlite3
 from functools import partial
 
+total_cost = 0
+average_cost_per_part = 0
+
 def fetch_options(query):
     con = sqlite3.connect('database/nexttech_calculator.db')
     cur = con.cursor()
@@ -92,20 +95,21 @@ def machine_cost(parts_produced,numbers_of_builds,total_machine_cost, infrastruc
             return total_machine_usage_cost, total_consumables_cost, total_labor_cost
 
 def display_results(total_cost, average_cost_per_part, cost_breakdown):
-            result_window = tk.Frame()
-            result_window.grid(row=0, column=2, sticky="nsew")
+            # Clear the frame2 content
+            for widget in frame2.winfo_children():
+                widget.destroy()
 
-             # Configure grid weights
-            result_window.grid_rowconfigure(0, weight=1)
-            result_window.grid_columnconfigure(0, weight=1)
+            # Configure grid weights
+            frame2.grid_rowconfigure(0, weight=1)
+            frame2.grid_columnconfigure(0, weight=1)
 
-            tk.Label(result_window, text=f"Total Cost: {total_cost}").grid(row=0, column=0, sticky='w')
-            tk.Label(result_window, text=f"Average Cost per Part: {average_cost_per_part}").grid(row=1, column=0, sticky='w')
-            tk.Label(result_window, text="Cost Breakdown:").grid(row=2, column=0, sticky='w')
+            tk.Label(frame2, text=f"Total Cost: {total_cost}").grid(row=0, column=0, sticky='w')
+            tk.Label(frame2, text=f"Average Cost per Part: {average_cost_per_part}").grid(row=1, column=0, sticky='w')
+            tk.Label(frame2, text="Cost Breakdown:").grid(row=2, column=0, sticky='w')
 
             row = 3
             for key, value in cost_breakdown.items():
-                tk.Label(result_window, text=f"{key}: {value}").grid(row=row, column=0, sticky='w')
+                tk.Label(frame2, text=f"{key}: {value}").grid(row=row, column=0, sticky='w')
                 row += 1
 
             # Create a graph of cost per part up to 100
@@ -118,12 +122,13 @@ def display_results(total_cost, average_cost_per_part, cost_breakdown):
             ax.set_ylabel('Cost per Part')
             ax.set_title('Cost per Part up to 100')
 
-            canvas = FigureCanvasTkAgg(fig, master=result_window)
+            canvas = FigureCanvasTkAgg(fig, master=frame2)
             canvas.draw()
             canvas.get_tk_widget().grid(row=row, column=0, sticky='w')
 
 
 def calculate(project_name_entry, machine_id_var, material_id_var, parts_produced_entry, numbers_of_builds_entry, part_mass_entry, material_id_menu, material_options, part_height_entry, part_area_entry, support_material_entry):
+        global total_cost, average_cost_per_part
         con = sqlite3.connect('database/nexttech_calculator.db')
         cur = con.cursor()
 
@@ -236,10 +241,28 @@ def calculate(project_name_entry, machine_id_var, material_id_var, parts_produce
         
         messagebox.showinfo("Success", "Calculation completed successfully!")
 
+def save_calculation(name_pro, machine_id_var, material_id_var, parts_produced_entry, numbers_of_builds_entry):
+        global total_cost, average_cost_per_part
+        con = sqlite3.connect('database/nexttech_calculator.db')
+        cur = con.cursor()
+        
+        machine_id = machine_options[machine_id_var.get()]
+        material_id = material_options[material_id_var.get()]
+        parts_produced = int(parts_produced_entry.get())
+        numbers_of_builds = int(numbers_of_builds_entry.get())
+        project_name = name_pro.get()
 
-        cur.execute("""INSERT INTO calculations (project_name, machine_used, material_used, parts_made, builds_done, process_used, post_process_used, operation_used, total_cost, average_cost)
-                        VALUES(?,?,?,?,?,?,?,?,?,?)""", (project_name, machine_id, material_id, parts_produced, numbers_of_builds, process_id, machine[11], operations[0], total_cost, average_cost_per_part))
+        print(machine_id, material_id)
+
+        query = "SELECT with_process FROM combination WHERE using_material = ? AND in_machine = ?"
+        process_id = cur.execute(query, (material_id, machine_id)).fetchone()
+        process_id = process_id[0]       
+
+        cur.execute("""INSERT INTO calculations (project_name, machine_used, material_used, parts_made, builds_done, process_used, total_cost, average_cost)
+                        VALUES(?,?,?,?,?,?,?,?)""", (project_name, machine_id, material_id, parts_produced, numbers_of_builds, process_id, total_cost, average_cost_per_part))
         con.commit()
+
+        messagebox.showinfo("Success", "Calculation saved successfully!")
         
 # Fetch options for dropdown menus
 material_options = fetch_options("SELECT material_id, material_name FROM materials")
@@ -280,7 +303,7 @@ overskrift2 = c.CTkLabel(root, text = "Calculation",
 overskrift2.place(x=840, y=35,)
 
 # Save button, MISSING A COMMAND
-save_button = c.CTkButton(root,
+save_button = c.CTkButton(root, command=lambda: save_calculation(name_pro, machine_id_var, material_id_var, parts_produced_entry, numbers_of_builds_entry),
                         text="Save calculation",
                         font=("Arial", 24),
                         text_color=("#FFFFFF"),
@@ -406,7 +429,7 @@ reset_button = c.CTkButton(root,
 reset_button.place(x=279, y=620)
 
 # Create and place the submit button
-submit_button = c.CTkButton(root, command=calculate,
+submit_button = c.CTkButton(root, command=lambda: calculate(name_pro, machine_id_var, material_id_var, parts_produced_entry, numbers_of_builds_entry, part_mass_entry, material_id_menu, material_options, part_height_entry, part_area_entry, support_material_entry),
                         text="Submit",
                         font=("Arial", 24),
                         text_color=("#FFFFFF"),
