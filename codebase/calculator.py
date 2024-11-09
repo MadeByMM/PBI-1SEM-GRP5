@@ -1,10 +1,15 @@
 import tkinter as tk
 from tkinter import messagebox
 from tkinter import Tk, Label, Entry, Button, StringVar, OptionMenu
+from tkinter import *
+import customtkinter as c
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import sqlite3
 from functools import partial
+
+total_cost = 0
+average_cost_per_part = 0
 
 def fetch_options(query):
     con = sqlite3.connect('database/nexttech_calculator.db')
@@ -90,20 +95,21 @@ def machine_cost(parts_produced,numbers_of_builds,total_machine_cost, infrastruc
             return total_machine_usage_cost, total_consumables_cost, total_labor_cost
 
 def display_results(total_cost, average_cost_per_part, cost_breakdown):
-            result_window = tk.Frame()
-            result_window.grid(row=0, column=2, sticky="nsew")
+            # Clear the frame2 content
+            for widget in frame2.winfo_children():
+                widget.destroy()
 
-             # Configure grid weights
-            result_window.grid_rowconfigure(0, weight=1)
-            result_window.grid_columnconfigure(0, weight=1)
+            # Configure grid weights
+            frame2.grid_rowconfigure(0, weight=1)
+            frame2.grid_columnconfigure(0, weight=1)
 
-            tk.Label(result_window, text=f"Total Cost: {total_cost}").grid(row=0, column=0, sticky='w')
-            tk.Label(result_window, text=f"Average Cost per Part: {average_cost_per_part}").grid(row=1, column=0, sticky='w')
-            tk.Label(result_window, text="Cost Breakdown:").grid(row=2, column=0, sticky='w')
+            tk.Label(frame2, text=f"Total Cost: {total_cost}").grid(row=0, column=0, sticky='w')
+            tk.Label(frame2, text=f"Average Cost per Part: {average_cost_per_part}").grid(row=1, column=0, sticky='w')
+            tk.Label(frame2, text="Cost Breakdown:").grid(row=2, column=0, sticky='w')
 
             row = 3
             for key, value in cost_breakdown.items():
-                tk.Label(result_window, text=f"{key}: {value}").grid(row=row, column=0, sticky='w')
+                tk.Label(frame2, text=f"{key}: {value}").grid(row=row, column=0, sticky='w')
                 row += 1
 
             # Create a graph of cost per part up to 100
@@ -116,12 +122,13 @@ def display_results(total_cost, average_cost_per_part, cost_breakdown):
             ax.set_ylabel('Cost per Part')
             ax.set_title('Cost per Part up to 100')
 
-            canvas = FigureCanvasTkAgg(fig, master=result_window)
+            canvas = FigureCanvasTkAgg(fig, master=frame2)
             canvas.draw()
             canvas.get_tk_widget().grid(row=row, column=0, sticky='w')
 
 
 def calculate(project_name_entry, machine_id_var, material_id_var, parts_produced_entry, numbers_of_builds_entry, part_mass_entry, material_id_menu, material_options, part_height_entry, part_area_entry, support_material_entry):
+        global total_cost, average_cost_per_part
         con = sqlite3.connect('database/nexttech_calculator.db')
         cur = con.cursor()
 
@@ -234,77 +241,204 @@ def calculate(project_name_entry, machine_id_var, material_id_var, parts_produce
         
         messagebox.showinfo("Success", "Calculation completed successfully!")
 
+def save_calculation(name_pro, machine_id_var, material_id_var, parts_produced_entry, numbers_of_builds_entry):
+        global total_cost, average_cost_per_part
+        con = sqlite3.connect('database/nexttech_calculator.db')
+        cur = con.cursor()
+        
+        machine_id = machine_options[machine_id_var.get()]
+        material_id = material_options[material_id_var.get()]
+        parts_produced = int(parts_produced_entry.get())
+        numbers_of_builds = int(numbers_of_builds_entry.get())
+        project_name = name_pro.get()
 
-        cur.execute("""INSERT INTO calculations (project_name, machine_used, material_used, parts_made, builds_done, process_used, post_process_used, operation_used, total_cost, average_cost)
-                        VALUES(?,?,?,?,?,?,?,?,?,?)""", (project_name, machine_id, material_id, parts_produced, numbers_of_builds, process_id, machine[11], operations[0], total_cost, average_cost_per_part))
+        print(machine_id, material_id)
+
+        query = "SELECT with_process FROM combination WHERE using_material = ? AND in_machine = ?"
+        process_id = cur.execute(query, (material_id, machine_id)).fetchone()
+        process_id = process_id[0]       
+
+        cur.execute("""INSERT INTO calculations (project_name, machine_used, material_used, parts_made, builds_done, process_used, total_cost, average_cost)
+                        VALUES(?,?,?,?,?,?,?,?)""", (project_name, machine_id, material_id, parts_produced, numbers_of_builds, process_id, total_cost, average_cost_per_part))
         con.commit()
 
-def create_calc_window(parent):
-    # Create the main window
-    frame = tk.Frame(parent)
-    frame.grid(row=0, column=1, sticky="nsew")
-    
+        messagebox.showinfo("Success", "Calculation saved successfully!")
+        
+# Fetch options for dropdown menus
+material_options = fetch_options("SELECT material_id, material_name FROM materials")
 
-    # Fetch options for dropdown menus
-    material_options = fetch_options("SELECT material_id, material_name FROM materials")
+# Add "Choose One" option
+material_options = {"Choose One": None, **material_options}
 
-    # Add "Choose One" option
-    material_options = {"Choose One": None, **material_options}
+# Initialize machine_options
+machine_options = {}
 
-    # Initialize machine_options
-    machine_options = {}
+# Create the main window
+root = c.CTk()
+root.title("Calculator")
+root.geometry("1280x720")
+root.config(bg= "#333333")
 
-    # Create dropdown menus
-    Label(frame, text="Pick machine:").grid(row=4, column=0)
-    machine_id_var = StringVar(frame)
-    machine_id_var.set("Choose One")  # default value
-    machine_id_menu = OptionMenu(frame, machine_id_var, "Choose One")
-    machine_id_menu.grid(row=4, column=1)
+#Frame around head menue, remove when we have a menu
+framehm = c.CTkFrame(root,
+                    fg_color=("#000000"),
+                    bg_color=("#333333"),
+                    height=670,
+                    width=181)
+framehm.place(x=25, y=25)
 
-    Label(frame, text="Pick material:").grid(row=3, column=0)
-    material_id_var = StringVar(frame)
-    material_id_var.set("Choose One")  # default value
-    material_id_var.trace_add('write', partial(update_machine_options, machine_id_var, material_id_var, machine_id_menu, material_options))
-    material_id_menu = OptionMenu(frame, material_id_var, *material_options.keys())
-    material_id_menu.grid(row=3, column=1)
+#Frame around calculation
+frame2 = c.CTkFrame(root,
+                    fg_color=("#CDCCCC"),
+                    bg_color=("#333333"),
+                    height=670,
+                    width=510)
+frame2.place(x=740, y=25)
 
-    # Create and place labels and entry fields
-    tk.Label(frame, text="Enter project name:").grid(row=0, column=0)
-    project_name_entry = tk.Entry(frame)
-    project_name_entry.grid(row=0, column=1)
+#Headline Calculation
+overskrift2 = c.CTkLabel(root, text = "Calculation",
+                        font = ("Arial",32, "bold"),
+                        text_color=("#0377AC"),
+                        bg_color =("#CDCCCC"),width=300, justify=CENTER)
+overskrift2.place(x=840, y=35,)
 
-    tk.Label(frame, text="Enter parts produced:").grid(row=1, column=0)
-    parts_produced_entry = tk.Entry(frame)
-    parts_produced_entry.grid(row=1, column=1)
+# Save button, MISSING A COMMAND
+save_button = c.CTkButton(root, command=lambda: save_calculation(name_pro, machine_id_var, material_id_var, parts_produced_entry, numbers_of_builds_entry),
+                        text="Save calculation",
+                        font=("Arial", 24),
+                        text_color=("#FFFFFF"),
+                        fg_color=("#0377AC"),
+                        bg_color=("#CDCCCC"),
+                        height=40, width=300, anchor="center",
+                        hover_color="#034868",
+                        corner_radius=20)
+save_button.place(x=840, y=620)
 
-    tk.Label(frame, text="Enter number of builds:").grid(row=2, column=0)
-    numbers_of_builds_entry = tk.Entry(frame)
-    numbers_of_builds_entry.grid(row=2, column=1)
+# Space for GUI Calculation 
 
-    tk.Label(frame, text="Enter part mass in kg:").grid(row=5, column=0)
-    part_mass_entry = tk.Entry(frame)
-    part_mass_entry.grid(row=5, column=1)
 
-    tk.Label(frame, text="Enter part height in cm:").grid(row=6, column=0)
-    part_height_entry = tk.Entry(frame)
-    part_height_entry.grid(row=6, column=1)
 
-    tk.Label(frame, text="Enter part area in cm^2:").grid(row=7, column=0)
-    part_area_entry = tk.Entry(frame)
-    part_area_entry.grid(row=7, column=1)
 
-    tk.Label(frame, text="Enter support material as percent of mass (ex: 0.15):").grid(row=9, column=0)
-    support_material_entry = tk.Entry(frame)
-    support_material_entry.grid(row=9, column=1)
 
-    # Create and place the submit button
-    submit_button = tk.Button(frame, text="Submit", command=lambda: calculate(project_name_entry, machine_id_var, material_id_var, parts_produced_entry, numbers_of_builds_entry, part_mass_entry, material_id_menu, material_options, part_height_entry, part_area_entry, support_material_entry))
-    submit_button.grid(row=10, column=0, columnspan=2)
 
-    # Create and place the close button
-    close_button = tk.Button(frame, text="Close", command=frame.destroy)
-    close_button.grid(row=11, column=0, columnspan=2)
+#Frame around calculator 
+frame1 = c.CTkFrame(root,
+                    fg_color=("#CDCCCC"),
+                    bg_color=("#333333"),
+                    height=670,
+                    width=480)
+frame1.place(x=231, y=25)
 
-    # Run the application
-    frame.mainloop()
-    return frame
+#Headline
+overskrift1 = c.CTkLabel(root, text = "New calculation",
+                        font = ("Arial",32, "bold"),
+                        text_color=("#0377AC"),
+                        bg_color =("#CDCCCC"),width=300, justify=CENTER)
+overskrift1.place(x=321, y=35,)
+
+
+
+# Name project, MISSING A COMMAND
+name_pro = c.CTkEntry(root,
+                        placeholder_text="Name your project",
+                        font=("Arial", 20),
+                        text_color=("#0377AC"),
+                        fg_color=("#FFFFFF"), bg_color=("#CDCCCC"),
+                        height=35, width=300,
+                        corner_radius=20, border_color="#0377AC", border_width=2)
+name_pro.place(x=321, y=85)
+
+
+#Pick Machine; dropdown menus
+label4 = c.CTkLabel(root, text="Pick machine:", font=("Arial", 18), text_color=("#0377AC"), bg_color=("#CDCCCC"),
+                    anchor="e", width=180)
+label4.place(x=270, y=320)
+
+machine_id_var = StringVar(root)
+machine_id_var.set("Choose One")  # default value
+machine_id_menu = OptionMenu(root, machine_id_var, "Choose One")
+machine_id_menu.place(x=480, y=320)
+
+# Pick Materials; dropdown menus
+label3 = c.CTkLabel(root, text="Pick material:", font=("Arial", 18), text_color=("#0377AC"), bg_color=("#CDCCCC"),
+                    anchor="e", width=180)
+label3.place(x=270, y=270)
+
+material_id_var = StringVar(root)
+material_id_var.set("Choose One")  # default value
+material_id_var.trace_add('write', partial(update_machine_options, machine_id_var, material_id_var, machine_id_menu, material_options))
+material_id_menu = OptionMenu(root, material_id_var, *material_options.keys())
+material_id_menu.place(x=480, y=270)
+
+# Enter parts produced
+label1 = c.CTkLabel(root, text="Enter parts produced:", font=("Arial", 18), text_color=("#0377AC"), bg_color=("#CDCCCC"),
+                    anchor="e", width=180)
+label1.place(x=270, y=170)
+parts_produced_entry = c.CTkEntry(root, fg_color=("#FFFFFF"), bg_color=("#CDCCCC"), height=30, width=177, corner_radius=20, border_color="#0377AC", border_width=2)
+parts_produced_entry.place(x=480, y=170)
+
+# Enter number of builds
+label2 = c.CTkLabel(root, text="Enter number of builds:", font=("Arial", 18), text_color=("#0377AC"), bg_color=("#CDCCCC"),
+                    anchor="e", width=180)
+label2.place(x=270, y=220)
+numbers_of_builds_entry = c.CTkEntry(root, fg_color=("#FFFFFF"), bg_color=("#CDCCCC"), height=30, width=177, corner_radius=20, border_color="#0377AC", border_width=2)
+numbers_of_builds_entry.place(x=480, y=220)
+
+# Enter part mass in kg 
+label5 = c.CTkLabel(root, text="Enter part mass in kg:", font=("Arial", 18), text_color=("#0377AC"), bg_color=("#CDCCCC"),
+                    anchor="e", width=180)
+label5.place(x=270, y=370)
+part_mass_entry = c.CTkEntry(root, fg_color=("#FFFFFF"), bg_color=("#CDCCCC"), height=30, width=177, corner_radius=20, border_color="#0377AC", border_width=2,
+                             placeholder_text="Kg.", placeholder_text_color=("#7A7A7A"))
+part_mass_entry.place(x=480, y=370)
+
+# Enter part height in cm
+label6 = c.CTkLabel(root, text="Enter part height in cm:", font=("Arial", 18), text_color=("#0377AC"), bg_color=("#CDCCCC"),
+                    anchor="e", width=180)
+label6.place(x=270, y=420)
+part_height_entry = c.CTkEntry(root, fg_color=("#FFFFFF"), bg_color=("#CDCCCC"), height=30, width=177, corner_radius=20, border_color="#0377AC", border_width=2,
+                               placeholder_text="cm", placeholder_text_color=("#7A7A7A"))
+part_height_entry.place(x=480, y=420)
+
+# Enter part area in cm^2
+label7 = c.CTkLabel(root, text="Enter part area in cm^2:", font=("Arial", 18), text_color=("#0377AC"), bg_color=("#CDCCCC"),
+                    anchor="e", width=180)
+label7.place(x=270, y=470)
+part_area_entry = c.CTkEntry(root, fg_color=("#FFFFFF"), bg_color=("#CDCCCC"), height=30, width=177, corner_radius=20, border_color="#0377AC", border_width=2,
+                                    placeholder_text="cm^2", placeholder_text_color=("#7A7A7A"))
+part_area_entry.place(x=480, y=470)
+
+# Enter support material as percent of mass
+label8 = c.CTkLabel(root, text="Enter support material:", font=("Arial", 18), text_color=("#0377AC"), bg_color=("#CDCCCC"),
+                    anchor="e", width=180)
+label8.place(x=270, y=520)
+support_material_entry = c.CTkEntry(root, fg_color=("#FFFFFF"), bg_color=("#CDCCCC"), height=30, width=177, corner_radius=20, border_color="#0377AC", border_width=2,
+                                    placeholder_text="percent of mass (ex.0.15)", placeholder_text_color=("#7A7A7A"))
+support_material_entry.place(x=480, y=520)
+
+# Reset button, MISSING A COMMAND
+reset_button = c.CTkButton(root,
+                        text="Reset",
+                        font=("Arial", 24),
+                        text_color=("#FFFFFF"),
+                        fg_color=("#5F6669"),
+                        bg_color=("#CDCCCC"),
+                        height=40, width=150,
+                        hover_color="#333333",
+                        corner_radius=20)
+reset_button.place(x=279, y=620)
+
+# Create and place the submit button
+submit_button = c.CTkButton(root, command=lambda: calculate(name_pro, machine_id_var, material_id_var, parts_produced_entry, numbers_of_builds_entry, part_mass_entry, material_id_menu, material_options, part_height_entry, part_area_entry, support_material_entry),
+                        text="Submit",
+                        font=("Arial", 24),
+                        text_color=("#FFFFFF"),
+                        fg_color=("#77AC03"),
+                        bg_color=("#CDCCCC"),
+                        height=40, width=150,
+                        hover_color="#527605",
+                        corner_radius=20)
+submit_button.place(x=500, y=620)
+
+# Run the application
+root.mainloop()
