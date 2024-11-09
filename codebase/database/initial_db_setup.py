@@ -112,8 +112,6 @@ if inp == 'y':
                     parts_made INT, 
                     builds_done INT, 
                     process_used INT, 
-                    post_process_used INT, 
-                    operation_used INT, 
                     total_cost FLOAT,
                     average_cost FLOAT);""")
     except Exception as e:
