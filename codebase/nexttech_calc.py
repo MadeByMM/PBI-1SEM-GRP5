@@ -551,6 +551,570 @@ def delete_machine():
     else:
         messagebox.showerror("Error", "No machine selected to delete.")
 
+
+# Function to fetch column names from the 'operations' table
+def fetch_operation_columns():
+    with closing(sqlite3.connect("codebase/nexttech_calculator.db")) as conn:
+        with closing(conn.cursor()) as cursor:
+            cursor.execute("PRAGMA table_info(operations)")  # Fetch all column names
+            operation_columns = cursor.fetchall()
+    return [column[1] for column in operation_columns]  # Extract and return column names
+
+# Function to fetch all operations IDs for combobox
+def fetch_operations():
+    with closing(sqlite3.connect("codebase/nexttech_calculator.db")) as conn:
+        with closing(conn.cursor()) as cursor:
+            cursor.execute("SELECT operations_id FROM operations")
+            operations = cursor.fetchall()
+    return [operation for operation in operations]  # Extract operation IDs
+
+# Function to fetch attributes of the selected operation by ID
+def fetch_operation_attributes(selected_operation):
+    with closing(sqlite3.connect("codebase/nexttech_calculator.db")) as conn:
+        with closing(conn.cursor()) as cursor:
+            cursor.execute("SELECT * FROM operations WHERE operations_id=?", (selected_operation,))
+            operation_attributes = cursor.fetchone()
+    return operation_attributes
+
+# Function to create a Treeview for the selected operation
+def populate_operation_treeview(frame, operation_data):
+    # Clear existing data
+    for row in operation_tree.get_children():
+        operation_tree.delete(row)
+    
+    # Fetch the column names
+    attribute_names = fetch_operation_columns()
+    
+    # Populate the Treeview with the operation data
+    for i, attribute_name in enumerate(attribute_names):
+        # Ensure there is data for each attribute
+        if i < len(operation_data):
+            attribute_display_name = attribute_name.replace("_", " ")
+            attribute_value = operation_data[i]
+            operation_tree.insert("", "end", values=(attribute_display_name, attribute_value))
+
+# Event handler for selecting an operation in the combobox
+def on_operation_selected(event):
+    selected_operation_id = combobox_operation.get()  # Retrieve selected operation ID
+    if selected_operation_id.isdigit():  # Ensure it’s a valid integer ID
+        operation_data = fetch_operation_attributes(int(selected_operation_id))
+        if operation_data:
+            populate_operation_treeview(price_change_frame, operation_data)
+        else:
+            messagebox.showerror("Error", "Operation not found.")
+
+# Function to create a new operation (prompt entry fields for every attribute)
+def create_new_operation():
+    operation_columns = fetch_operation_columns()  # Get column names from the table
+    entry_fields = {}
+
+    # Create a new window to prompt for the operation attributes
+    create_window = tk.Toplevel(root)
+    create_window.title("Create New Operation")
+
+    # Dynamically create labels and entry fields for each column in the 'operations' table
+    row = 0
+    for column in operation_columns[0:]:  # Start from column=0
+        label = tk.Label(create_window, text=column.replace("_", " ").title() + ":")
+        label.grid(row=row, column=0, padx=10, pady=5, sticky="w")
+        
+        entry = tk.Entry(create_window)
+        entry.grid(row=row, column=1, padx=10, pady=5)
+        
+        entry_fields[column] = entry
+        row += 1
+
+    # Button to save the new operation to the database
+    def save_new_operation():
+        # Collect all values from the entry fields
+        values = [entry.get() for entry in entry_fields.values()]
+
+        if all(values):  # Ensure all fields are filled
+            operations_id = values[0]  # Assuming that Operation_Name is the first column
+
+            # Check if the operation name already exists
+            with closing(sqlite3.connect("codebase/nexttech_calculator.db")) as conn:
+                with closing(conn.cursor()) as cursor:
+                    cursor.execute("SELECT COUNT(*) FROM operations WHERE operations_id = ?", (operations_id,))
+                    count = cursor.fetchone()[0]
+
+                    if count > 0:  # Operation name already exists
+                        messagebox.showerror("Error", f"An operation with the name '{operations_id}' already exists.")
+                        return
+
+            # Create the insert statement dynamically
+            column_names = ', '.join(entry_fields.keys())  # Join column names with commas
+            placeholders = ', '.join(['?'] * len(entry_fields))  # Create placeholders for each field
+
+            # Prepare the insert statement
+            insert_query = f"INSERT INTO operations ({column_names}) VALUES ({placeholders})"
+            
+            with closing(sqlite3.connect("codebase/nexttech_calculator.db")) as conn:
+                with closing(conn.cursor()) as cursor:
+                    cursor.execute(insert_query, values)  # Pass values to be inserted
+                    conn.commit()
+
+            messagebox.showinfo("Success", "Operation created successfully.")
+            create_window.destroy()  # Close the window after success
+        else:
+            messagebox.showerror("Error", "All fields must be filled.")
+
+    save_button = tk.Button(create_window, text="Save", command=save_new_operation)
+    save_button.grid(row=row, column=0, columnspan=2, pady=10)
+
+# Function to edit an existing operation (prompt entry fields for every attribute)
+def edit_operation():
+    selected_operation = combobox_operation.get()
+
+    if selected_operation:
+        operation_columns = fetch_operation_columns()  # Get column names
+        operation_data = fetch_operation_attributes(selected_operation)  # Fetch existing data
+
+        if operation_data:
+            # Create a new window to prompt for the operation attributes
+            edit_window = tk.Toplevel(root)
+            edit_window.title(f"Edit Operation - {selected_operation}")
+
+            entry_fields = {}
+
+            # Dynamically create labels and entry fields for each column in the 'operations' table
+            row = 0
+            for idx, column in enumerate(operation_columns[1:]):  # Skip the ID column (usually the first column)
+                label = tk.Label(edit_window, text=column.replace("_", " ").title() + ":")
+                label.grid(row=row, column=0, padx=10, pady=5, sticky="w")
+                
+                entry = tk.Entry(edit_window)
+                entry.insert(0, operation_data[idx + 1])  # Set the initial value to the existing data
+                entry.grid(row=row, column=1, padx=10, pady=5)
+                
+                entry_fields[column] = entry
+                row += 1
+
+            # Button to save the edited operation to the database
+            def save_edited_operation():
+                values = [entry.get() for entry in entry_fields.values()]
+                if all(values):  # Ensure all fields are filled
+                    with closing(sqlite3.connect("codebase/nexttech_calculator.db")) as conn:
+                        with closing(conn.cursor()) as cursor:
+                            # Dynamically create the update query to update all fields
+                            set_clause = ", ".join([f"{column} = ?" for column in operation_columns[1:]])  # Skip the ID column
+                            cursor.execute(
+                                f"UPDATE operations SET {set_clause} WHERE Operation_id = ?",
+                                (*values, selected_operation)  # Pass all the values and selected operation name
+                            )
+                            conn.commit()
+                    messagebox.showinfo("Success", "Operation updated successfully.")
+                    edit_window.destroy()
+                else:
+                    messagebox.showerror("Error", "All fields must be filled.")
+
+            save_button = tk.Button(edit_window, text="Save", command=save_edited_operation)
+            save_button.grid(row=row, column=0, columnspan=2, pady=10)
+        else:
+            messagebox.showerror("Error", "Operation not found.")
+    else:
+        messagebox.showerror("Error", "No operation selected to edit.")
+
+# Function to delete an operation
+def delete_operation():
+    selected_operation = combobox_operation.get()
+
+    if selected_operation:
+        # Fetch the operation data to ensure it's the correct one
+        operation_data = fetch_operation_attributes(selected_operation)
+        
+        if operation_data:
+            # Confirm deletion with a message box
+            confirm = messagebox.askyesno("Delete Operation", f"Are you sure you want to delete the operation '{selected_operation}'?")
+            
+            if confirm:
+                with closing(sqlite3.connect("codebase/nexttech_calculator.db")) as conn:
+                    with closing(conn.cursor()) as cursor:
+                        # Delete the selected operation based on the Operations_id
+                        cursor.execute("DELETE FROM operations WHERE Operation_id = ?", (selected_operation,))
+                        conn.commit()
+                
+                messagebox.showinfo("Success", "Operation deleted successfully.")
+            else:
+                messagebox.showinfo("Canceled", "Operation deletion canceled.")
+        else:
+            messagebox.showerror("Error", "Operation not found.")
+    else:
+        messagebox.showerror("Error", "No operation selected to delete.")
+
+#########PROCESSEs##############
+
+# Function to connect to the database and fetch all processes data
+def fetch_processes():
+    with closing(sqlite3.connect("codebase/nexttech_calculator.db")) as conn:
+        with closing(conn.cursor()) as cursor:
+            cursor.execute("SELECT * FROM processes")
+            processes = cursor.fetchall()
+    return processes
+
+# Function to fetch attributes of the selected process
+def fetch_process_attributes(selected_process):
+    with closing(sqlite3.connect("codebase/nexttech_calculator.db")) as conn:
+        with closing(conn.cursor()) as cursor:
+            cursor.execute("SELECT * FROM processes WHERE Process_Name=?", (selected_process,))
+            process_attributes = cursor.fetchone()
+    return process_attributes
+
+# Function to fetch column names from the 'processes' table
+def fetch_process_columns():
+    with closing(sqlite3.connect("codebase/nexttech_calculator.db")) as conn:
+        with closing(conn.cursor()) as cursor:
+            cursor.execute("PRAGMA table_info(processes)")
+            columns_processes = cursor.fetchall()
+    return [column[1] for column in columns_processes]  # Extracting the column names
+
+# Function to create a Treeview for the selected process
+def populate_process_treeview(frame, process_data):
+    # Clear existing data
+    for row in process_tree.get_children():
+        process_tree.delete(row)
+    # Fetch the column names
+    attribute_names = fetch_process_columns()
+    for i, attribute_name in enumerate(attribute_names):
+        # Replace underscores with spaces in attribute names
+        attribute_display_name = attribute_name.replace("_", " ")
+        attribute_value = process_data[i]  # Access each attribute's value directly from the tuple
+        process_tree.insert("", "end", values=(attribute_display_name, attribute_value))
+
+def on_process_selected(event):
+    selected_process = combobox_process.get()
+    process_data = fetch_process_attributes(selected_process)
+    print(f"Debug: Process data fetched: {process_data}")  # Check the fetched data
+    if process_data:
+        populate_process_treeview(frame, process_data)
+    else:
+        messagebox.showerror("Error", "Process not found.")
+
+# Function to create a new process (prompt entry fields for every attribute)
+def create_new_process():
+    process_columns = fetch_process_columns()  # Get column names from the table
+    entry_fields = {}
+
+    # Create a new window to prompt for the process attributes
+    create_window = tk.Toplevel(root)
+    create_window.title("Create New Process")
+
+    # Dynamically create labels and entry fields for each column in the 'processes' table
+    row = 0
+    for column in process_columns[1:]:  # Skip the ID column (usually the first column)
+        label = tk.Label(create_window, text=column.replace("_", " ").title() + ":")
+        label.grid(row=row, column=0, padx=10, pady=5, sticky="w")
+        
+        entry = tk.Entry(create_window)
+        entry.grid(row=row, column=1, padx=10, pady=5)
+        
+        entry_fields[column] = entry
+        row += 1
+
+    # Button to save the new process to the database
+    def save_new_process():
+        # Collect all values from the entry fields
+        values = [entry.get() for entry in entry_fields.values()]
+
+        if all(values):  # Ensure all fields are filled
+            process_name = values[0]  # Assuming that Process_Name is the first column
+
+            # Check if the process name already exists
+            with closing(sqlite3.connect("codebase/nexttech_calculator.db")) as conn:
+                with closing(conn.cursor()) as cursor:
+                    cursor.execute("SELECT COUNT(*) FROM processes WHERE Process_Name = ?", (process_name,))
+                    count = cursor.fetchone()[0]
+
+                    if count > 0:  # Process name already exists
+                        messagebox.showerror("Error", f"A process with the name '{process_name}' already exists.")
+                        return
+
+            # Create the insert statement dynamically
+            column_names = ', '.join(entry_fields.keys())  # Join column names with commas
+            placeholders = ', '.join(['?'] * len(entry_fields))  # Create placeholders for each field
+
+            # Prepare the insert statement
+            insert_query = f"INSERT INTO processes ({column_names}) VALUES ({placeholders})"
+            
+            with closing(sqlite3.connect("codebase/nexttech_calculator.db")) as conn:
+                with closing(conn.cursor()) as cursor:
+                    cursor.execute(insert_query, values)  # Pass values to be inserted
+                    conn.commit()
+
+            messagebox.showinfo("Success", "Process created successfully.")
+            create_window.destroy()  # Close the window after success
+        else:
+            messagebox.showerror("Error", "All fields must be filled.")
+
+    save_button = tk.Button(create_window, text="Save", command=save_new_process)
+    save_button.grid(row=row, column=0, columnspan=2, pady=10)
+
+# Function to edit an existing process (prompt entry fields for every attribute)
+def edit_process():
+    selected_process = combobox_process.get()
+
+    if selected_process:
+        process_columns = fetch_process_columns()  # Get column names
+        process_data = fetch_process_attributes(selected_process)  # Fetch existing data
+
+        if process_data:
+            # Create a new window to prompt for the process attributes
+            edit_window = tk.Toplevel(root)
+            edit_window.title(f"Edit Process - {selected_process}")
+
+            entry_fields = {}
+
+            # Dynamically create labels and entry fields for each column in the 'processes' table
+            row = 0
+            for idx, column in enumerate(process_columns[1:]):  # Skip the ID column (usually the first column)
+                label = tk.Label(edit_window, text=column.replace("_", " ").title() + ":")
+                label.grid(row=row, column=0, padx=10, pady=5, sticky="w")
+                
+                entry = tk.Entry(edit_window)
+                entry.insert(0, process_data[idx + 1])  # Set the initial value to the existing data
+                entry.grid(row=row, column=1, padx=10, pady=5)
+                
+                entry_fields[column] = entry
+                row += 1
+
+            # Button to save the edited process to the database
+            def save_edited_process():
+                values = [entry.get() for entry in entry_fields.values()]
+                if all(values):  # Ensure all fields are filled
+                    with closing(sqlite3.connect("codebase/nexttech_calculator.db")) as conn:
+                        with closing(conn.cursor()) as cursor:
+                            # Dynamically create the update query to update all fields
+                            set_clause = ", ".join([f"{column} = ?" for column in process_columns[1:]])  # Skip the ID column
+                            cursor.execute(
+                                f"UPDATE processes SET {set_clause} WHERE Process_Name = ?",
+                                (*values, selected_process)  # Pass all the values and selected process name
+                            )
+                            conn.commit()
+                    messagebox.showinfo("Success", "Process updated successfully.")
+                    edit_window.destroy()
+                else:
+                    messagebox.showerror("Error", "All fields must be filled.")
+
+            save_button = tk.Button(edit_window, text="Save", command=save_edited_process)
+            save_button.grid(row=row, column=0, columnspan=2, pady=10)
+        else:
+            messagebox.showerror("Error", "Process not found.")
+    else:
+        messagebox.showerror("Error", "No process selected to edit.")
+
+# Function to delete a process
+def delete_process():
+    selected_process = combobox_process.get()
+
+    if selected_process:
+        # Fetch the process data to ensure it's the correct one
+        process_data = fetch_process_attributes(selected_process)
+        
+        if process_data:
+            # Confirm deletion with a message box
+            confirm = messagebox.askyesno("Delete Process", f"Are you sure you want to delete the process '{selected_process}'?")
+            
+            if confirm:
+                with closing(sqlite3.connect("codebase/nexttech_calculator.db")) as conn:
+                    with closing(conn.cursor()) as cursor:
+                        # Delete the selected process based on the Process_Name
+                        cursor.execute("DELETE FROM processes WHERE Process_Name = ?", (selected_process,))
+                        conn.commit()
+                
+                messagebox.showinfo("Success", "Process deleted successfully.")
+            else:
+                messagebox.showinfo("Canceled", "Process deletion canceled.")
+        else:
+            messagebox.showerror("Error", "Process not found.")
+    else:
+        messagebox.showerror("Error", "No process selected to delete.")
+######## MATERIALS########
+
+# Function to connect to the database and fetch all materials data
+def fetch_materials():
+    with closing(sqlite3.connect("codebase/nexttech_calculator.db")) as conn:
+        with closing(conn.cursor()) as cursor:
+            cursor.execute("SELECT * FROM materials")
+            materials = cursor.fetchall()
+    return materials
+
+# Function to fetch attributes of the selected material
+def fetch_material_attributes(selected_material):
+    with closing(sqlite3.connect("codebase/nexttech_calculator.db")) as conn:
+        with closing(conn.cursor()) as cursor:
+            cursor.execute("SELECT * FROM materials WHERE Material_Name=?", (selected_material,))
+            material_attributes = cursor.fetchone()
+    return material_attributes
+
+# Function to fetch column names from the 'materials' table
+def fetch_material_columns():
+    with closing(sqlite3.connect("codebase/nexttech_calculator.db")) as conn:
+        with closing(conn.cursor()) as cursor:
+            cursor.execute("PRAGMA table_info(materials)")
+            columns_materials = cursor.fetchall()
+    return [column[1] for column in columns_materials]  # Extracting the column names
+
+# Function to create a Treeview for the selected material
+def populate_material_treeview(frame, material_data):
+    # Clear existing data
+    for row in material_tree.get_children():
+        material_tree.delete(row)
+    # Fetch the column names
+    attribute_names = fetch_material_columns()
+    for i, attribute_name in enumerate(attribute_names):
+        # Replace underscores with spaces in attribute names
+        attribute_display_name = attribute_name.replace("_", " ")
+        attribute_value = material_data[i]  # Access each attribute's value directly from the tuple
+        material_tree.insert("", "end", values=(attribute_display_name, attribute_value))
+
+def on_material_selected(event):
+    selected_material = combobox_material.get()
+    material_data = fetch_material_attributes(selected_material)
+    print(f"Debug: Material data fetched: {material_data}")  # Check the fetched data
+    if material_data:
+        populate_material_treeview(frame, material_data)
+    else:
+        messagebox.showerror("Error", "Material not found.")
+
+# Function to create a new material (prompt entry fields for every attribute)
+def create_new_material():
+    material_columns = fetch_material_columns()  # Get column names from the table
+    entry_fields = {}
+
+    # Create a new window to prompt for the material attributes
+    create_window = tk.Toplevel(root)
+    create_window.title("Create New Material")
+
+    # Dynamically create labels and entry fields for each column in the 'materials' table
+    row = 0
+    for column in material_columns[1:]:  # Skip the ID column (usually the first column)
+        label = tk.Label(create_window, text=column.replace("_", " ").title() + ":")
+        label.grid(row=row, column=0, padx=10, pady=5, sticky="w")
+        
+        entry = tk.Entry(create_window)
+        entry.grid(row=row, column=1, padx=10, pady=5)
+        
+        entry_fields[column] = entry
+        row += 1
+
+    # Button to save the new material to the database
+    def save_new_material():
+        # Collect all values from the entry fields
+        values = [entry.get() for entry in entry_fields.values()]
+
+        if all(values):  # Ensure all fields are filled
+            material_name = values[0]  # Assuming that Material_Name is the first column
+
+            # Check if the material name already exists
+            with closing(sqlite3.connect("codebase/nexttech_calculator.db")) as conn:
+                with closing(conn.cursor()) as cursor:
+                    cursor.execute("SELECT COUNT(*) FROM materials WHERE Material_Name = ?", (material_name,))
+                    count = cursor.fetchone()[0]
+
+                    if count > 0:  # Material name already exists
+                        messagebox.showerror("Error", f"A material with the name '{material_name}' already exists.")
+                        return
+
+            # Create the insert statement dynamically
+            column_names = ', '.join(entry_fields.keys())  # Join column names with commas
+            placeholders = ', '.join(['?'] * len(entry_fields))  # Create placeholders for each field
+
+            # Prepare the insert statement
+            insert_query = f"INSERT INTO materials ({column_names}) VALUES ({placeholders})"
+            
+            with closing(sqlite3.connect("codebase/nexttech_calculator.db")) as conn:
+                with closing(conn.cursor()) as cursor:
+                    cursor.execute(insert_query, values)  # Pass values to be inserted
+                    conn.commit()
+
+            messagebox.showinfo("Success", "Material created successfully.")
+            create_window.destroy()  # Close the window after success
+        else:
+            messagebox.showerror("Error", "All fields must be filled.")
+
+    save_button = tk.Button(create_window, text="Save", command=save_new_material)
+    save_button.grid(row=row, column=0, columnspan=2, pady=10)
+
+# Function to edit an existing material (prompt entry fields for every attribute)
+def edit_material():
+    selected_material = combobox_material.get()
+
+    if selected_material:
+        material_columns = fetch_material_columns()  # Get column names
+        material_data = fetch_material_attributes(selected_material)  # Fetch existing data
+
+        if material_data:
+            # Create a new window to prompt for the material attributes
+            edit_window = tk.Toplevel(root)
+            edit_window.title(f"Edit Material - {selected_material}")
+
+            entry_fields = {}
+
+            # Dynamically create labels and entry fields for each column in the 'materials' table
+            row = 0
+            for idx, column in enumerate(material_columns[1:]):  # Skip the ID column (usually the first column)
+                label = tk.Label(edit_window, text=column.replace("_", " ").title() + ":")
+                label.grid(row=row, column=0, padx=10, pady=5, sticky="w")
+                
+                entry = tk.Entry(edit_window)
+                entry.insert(0, material_data[idx + 1])  # Set the initial value to the existing data
+                entry.grid(row=row, column=1, padx=10, pady=5)
+                
+                entry_fields[column] = entry
+                row += 1
+
+            # Button to save the edited material to the database
+            def save_edited_material():
+                values = [entry.get() for entry in entry_fields.values()]
+                if all(values):  # Ensure all fields are filled
+                    with closing(sqlite3.connect("codebase/nexttech_calculator.db")) as conn:
+                        with closing(conn.cursor()) as cursor:
+                            # Dynamically create the update query to update all fields
+                            set_clause = ", ".join([f"{column} = ?" for column in material_columns[1:]])  # Skip the ID column
+                            cursor.execute(
+                                f"UPDATE materials SET {set_clause} WHERE Material_Name = ?",
+                                (*values, selected_material)  # Pass all the values and selected material name
+                            )
+                            conn.commit()
+                    messagebox.showinfo("Success", "Material updated successfully.")
+                    edit_window.destroy()
+                else:
+                    messagebox.showerror("Error", "All fields must be filled.")
+
+            save_button = tk.Button(edit_window, text="Save", command=save_edited_material)
+            save_button.grid(row=row, column=0, columnspan=2, pady=10)
+        else:
+            messagebox.showerror("Error", "Material not found.")
+    else:
+        messagebox.showerror("Error", "No material selected to edit.")
+
+# Function to delete a material
+def delete_material():
+    selected_material = combobox_material.get()
+
+    if selected_material:
+        # Fetch the material data to ensure it's the correct one
+        material_data = fetch_material_attributes(selected_material)
+        
+        if material_data:
+            # Confirm deletion with a message box
+            confirm = messagebox.askyesno("Delete Material", f"Are you sure you want to delete the material '{selected_material}'?")
+            
+            if confirm:
+                with closing(sqlite3.connect("codebase/nexttech_calculator.db")) as conn:
+                    with closing(conn.cursor()) as cursor:
+                        # Delete the selected material based on the Material_Name
+                        cursor.execute("DELETE FROM materials WHERE Material_Name = ?", (selected_material,))
+                        conn.commit()
+                
+                messagebox.showinfo("Success", "Material deleted successfully.")
+            else:
+                messagebox.showinfo("Canceled", "Material deletion canceled.")
+        else:
+            messagebox.showerror("Error", "Material not found.")
+    else:
+        messagebox.showerror("Error", "No material selected to delete.")
+
 # MAIN WINDOW
 root = tk.Tk()
 root.title("Nexttech Calculator")
@@ -961,51 +1525,181 @@ for frame in frames:
     frame.grid_columnconfigure(0, weight=1)  # Allow frames to expand horizontally
     frame.config(background="#333333") 
 
-price_change_frame = tk.Frame(price_settings_frame, width=510, height=650, bg="#D9D9D9", bd=0, relief="solid",highlightcolor="#00A3EE", highlightbackground="#00A3EE", highlightthickness=2)
+price_change_frame = tk.Frame(price_settings_frame, width=800, height=650, bg="#D9D9D9", bd=0, relief="solid",highlightcolor="#00A3EE", highlightbackground="#00A3EE", highlightthickness=2)
 price_change_frame.grid(row=1, column=1, rowspan=28, columnspan=2, padx=10, pady=10, sticky="nsew")
 price_change_frame.grid_propagate(False)
 
-for i in range(30):  
+# borders for dividing price_change_frame in 4
+price_label_row = tk.Label(price_change_frame, text="", bg="#00A3EE", )
+price_label_row.grid(row=3, column=0, columnspan=15,sticky="ew")
+
+price_label_col = tk.Label(price_change_frame, text="", bg="#00A3EE", width=2)
+price_label_col.grid(row=0, column=4, rowspan=30, sticky="ns")
+
+for i in range(10):  
     price_change_frame.grid_rowconfigure(i, weight=1)
 for i in range(15):
     price_change_frame.grid_columnconfigure(i, weight=1)
-
+price_change_frame.grid_rowconfigure(4, weight=1, minsize=1)  
+### MACHINES GUI
 machines = fetch_machines()
 machine_names = [machine[1] for machine in machines]  
 
 # Combobox to select machine (placed in price_change_frame)
 combobox_machine = ttk.Combobox(price_change_frame, values=machine_names, state="readonly")
-combobox_machine.grid(row=0, column=1, padx=10, pady=10)
+combobox_machine.grid(row=0, column=0, padx=10, pady=10)
 combobox_machine.set("Select printer")
 combobox_machine.bind("<<ComboboxSelected>>", on_machine_selected)
 
 # Frame to hold the Treeview and scrollbar
-treeview_frame = tk.Frame(price_change_frame)
-treeview_frame.grid(row=2, column=0, columnspan=3, padx=10, pady=10, sticky="nsew")
-treeview_frame.grid_rowconfigure(0, weight=1)
-treeview_frame.grid_columnconfigure(0, weight=1)
+treeview_frame_machine = tk.Frame(price_change_frame)
+treeview_frame_machine.grid(row=2, column=0, columnspan=3, padx=10, pady=10, sticky="nsew")
+treeview_frame_machine.grid_rowconfigure(0, weight=1)
+treeview_frame_machine.grid_columnconfigure(0, weight=1)
 
 # machine treeview
 columns_machine = ["Attribute", "Value"]
-machine_tree = ttk.Treeview(treeview_frame, columns=columns_machine, show="headings", height=6)
+machine_tree = ttk.Treeview(treeview_frame_machine, columns=columns_machine, show="headings", height=6)
 machine_tree.heading("Attribute", text="Attribute")
 machine_tree.heading("Value", text="Value")
 machine_tree.grid(row=0, column=0, sticky="nsew")
 
 # Machine scrollbar
-machine_scrollbar = ttk.Scrollbar(treeview_frame, orient="vertical", command=machine_tree.yview)
+machine_scrollbar = ttk.Scrollbar(treeview_frame_machine, orient="vertical", command=machine_tree.yview)
 machine_tree.configure(yscroll=machine_scrollbar.set)
 machine_scrollbar.grid(row=0, column=1, sticky="ns")
 
 # machine buttons
 create_button_machine = tk.Button(price_change_frame, text="Create Machine", command=create_new_machine)
-create_button_machine.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
+create_button_machine.grid(row=1, column=0, padx=10, pady=5, sticky="nsew")
 
 edit_button_machine = tk.Button(price_change_frame, text="Edit Machine", command=edit_machine)
-edit_button_machine.grid(row=1, column=1, padx=10, pady=10, sticky="nsew")
+edit_button_machine.grid(row=1, column=1, padx=10, pady=5, sticky="nsew")
 
 delete_button_machine = tk.Button(price_change_frame, text="Delete Machine", command=delete_machine)
-delete_button_machine.grid(row=1, column=2, padx=10, pady=10, sticky="nsew")
+delete_button_machine.grid(row=1, column=2, padx=10, pady=5, sticky="nsew")
+
+operations = fetch_operations()
+operation_names = [operation[0] for operation in operations]  
+
+
+###  OPERATIONS GUI
+
+# Combobox to select operation (placed in price_change_frame)
+combobox_operation = ttk.Combobox(price_change_frame, values=operation_names, state="readonly")
+combobox_operation.grid(row=0, column=5, padx=10, pady=10)
+combobox_operation.set("Select operation")
+combobox_operation.bind("<<ComboboxSelected>>", on_operation_selected)
+
+# Frame to hold the Treeview and scrollbar
+treeview_frame_operations = tk.Frame(price_change_frame)
+treeview_frame_operations.grid(row=2, column=5, columnspan=3, padx=10, pady=10, sticky="nsew")
+treeview_frame_operations.grid_rowconfigure(0, weight=1)
+treeview_frame_operations.grid_columnconfigure(0, weight=1)
+
+# operation treeview
+columns_operation = ["Attribute", "Value"]
+operation_tree = ttk.Treeview(treeview_frame_operations, columns=columns_operation, show="headings", height=6)
+operation_tree.heading("Attribute", text="Attribute")
+operation_tree.heading("Value", text="Value")
+operation_tree.grid(row=0, column=0, sticky="nsew")
+
+
+# Scrollbar for the Treeview
+scrollbar = ttk.Scrollbar(treeview_frame_operations, orient="vertical", command=operation_tree.yview)
+scrollbar.grid(row=0, column=1, sticky="ns")
+operation_tree.config(yscrollcommand=scrollbar.set)
+
+# Buttons
+create_button = tk.Button(price_change_frame, text="Create New Operation", command=create_new_operation)
+create_button.grid(row=1, column=5, padx=10, pady=5)
+
+edit_button = tk.Button(price_change_frame, text="Edit Operation", command=edit_operation)
+edit_button.grid(row=1, column=6, padx=10, pady=5)
+
+delete_button = tk.Button(price_change_frame, text="Delete Operation", command=delete_operation)
+delete_button.grid(row=1, column=7, padx=10, pady=5)
+
+##### PROCESSES USER INTERFACE
+processes = fetch_processes()
+process_names = [process[1] for process in processes]  
+
+# Combobox to select process (placed in price_change_frame)
+combobox_process = ttk.Combobox(price_change_frame, values=process_names, state="readonly")
+combobox_process.grid(row=4, column=0, padx=10, pady=10)
+combobox_process.set("Select process")
+combobox_process.bind("<<ComboboxSelected>>", on_process_selected)
+
+# Frame to hold the Treeview and scrollbar
+treeview_frame_process = tk.Frame(price_change_frame)
+treeview_frame_process.grid(row=6, column=0, columnspan=3, padx=10, pady=10, sticky="nsew")
+treeview_frame_process.grid_rowconfigure(0, weight=1)
+treeview_frame_process.grid_columnconfigure(0, weight=1)
+
+# Process treeview
+columns_process = ["Attribute", "Value"]
+process_tree = ttk.Treeview(treeview_frame_process, columns=columns_process, show="headings", height=6)
+process_tree.grid(row=0, column=0, sticky="nsew")
+
+# Adding headers
+for col in columns_process:
+    process_tree.heading(col, text=col)
+
+# Scrollbar for the Treeview
+scrollbar = ttk.Scrollbar(treeview_frame_process, orient="vertical", command=process_tree.yview)
+scrollbar.grid(row=0, column=1, sticky="ns")
+process_tree.config(yscrollcommand=scrollbar.set)
+
+# Buttons
+create_button = tk.Button(price_change_frame, text="Create New Process", command=create_new_process)
+create_button.grid(row=5, column=0, padx=10, pady=5)
+
+edit_button = tk.Button(price_change_frame, text="Edit Process", command=edit_process)
+edit_button.grid(row=5, column=1, padx=10, pady=5)
+
+delete_button = tk.Button(price_change_frame, text="Delete Process", command=delete_process)
+delete_button.grid(row=5, column=2, padx=10, pady=5)
+
+#### MATERIALS USER INTERFACE
+
+materials = fetch_materials()
+material_names = [material[1] for material in materials]  
+
+# Combobox to select material (placed in price_change_frame)
+combobox_material = ttk.Combobox(price_change_frame, values=material_names, state="readonly")
+combobox_material.grid(row=4, column=5, padx=10, pady=10)
+combobox_material.set("Select material")
+combobox_material.bind("<<ComboboxSelected>>", on_material_selected)
+
+# Frame to hold the Treeview and scrollbar
+treeview_frame_material = tk.Frame(price_change_frame)
+treeview_frame_material.grid(row=6, column=5, columnspan=3, padx=10, pady=10, sticky="nsew")
+treeview_frame_material.grid_rowconfigure(0, weight=1)
+treeview_frame_material.grid_columnconfigure(0, weight=1)
+
+# Material treeview
+columns_material = ["Attribute", "Value"]
+material_tree = ttk.Treeview(treeview_frame_material, columns=columns_material, show="headings", height=6)
+material_tree.grid(row=0, column=0, sticky="nsew")
+
+# Adding headers
+for col in columns_material:
+    material_tree.heading(col, text=col)
+
+# Scrollbar for the Treeview
+scrollbar = ttk.Scrollbar(treeview_frame_material, orient="vertical", command=material_tree.yview)
+scrollbar.grid(row=0, column=1, sticky="ns")
+material_tree.config(yscrollcommand=scrollbar.set)
+
+# Buttons
+create_button = tk.Button(price_change_frame, text="Create New Material", command=create_new_material)
+create_button.grid(row=5, column=5, padx=10, pady=5)
+
+edit_button = tk.Button(price_change_frame, text="Edit Material", command=edit_material)
+edit_button.grid(row=5, column=6, padx=10, pady=5)
+
+delete_button = tk.Button(price_change_frame, text="Delete Material", command=delete_material)
+delete_button.grid(row=5, column=7, padx=10, pady=5)
 
 initialize_database()
 show_frame(background_frame)
