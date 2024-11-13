@@ -1,3 +1,5 @@
+import os
+import sys
 import sqlite3
 import hashlib
 import tkinter as tk
@@ -12,20 +14,56 @@ from functools import partial
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
+def resource_path(relative_path):
+    """ Get the absolute path to the resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
 
+    return os.path.join(base_path, relative_path)
 
-###### HISTORY PAGE
+def get_db_connection():
+    """ Get a connection to the database """
+    db_path = resource_path('nexttech_calculator.db')
+    print(f"Database path: {db_path}")  # Debug statement
+    if not os.path.exists(db_path):
+        print("Database file does not exist!")  # Debug statement
+    else:
+        print("Database file exists.")  # Debug statement
+    return sqlite3.connect(db_path)
 
-# Connect to the database
-con = sqlite3.connect('nexttech_calculator.db')
+# Verify the tables in the database
+con = get_db_connection()
 cur = con.cursor()
-cur.execute("""SELECT c.calculation_id, c.date, c.project_name, n.machine_name, m.material_name, c.average_cost
-            FROM calculations c
-            JOIN materials m ON c.material_used = m.material_id
-            JOIN machines n ON c.machine_used = n.machine_id""")
+cur.execute("SELECT name FROM sqlite_master WHERE type='table';")
+tables = cur.fetchall()
+print(f"Tables in the database: {tables}")  # Debug statement
 
+# Verify the contents of the 'calculations' table
+try:
+    cur.execute("SELECT * FROM calculations LIMIT 1;")
+    calculations_sample = cur.fetchone()
+    print(f"Sample data from 'calculations' table: {calculations_sample}")  # Debug statement
+except sqlite3.OperationalError as e:
+    print(f"Error accessing 'calculations' table: {e}")  # Debug statement
 
+# Add the part where the error occurs
+def fetch_calculations():
+    with closing(get_db_connection()) as con:
+        with closing(con.cursor()) as cur:
+            print("Fetching calculations...")  # Debug statement
+            cur.execute("""SELECT c.calculation_id, c.date, c.project_name, n.machine_name, m.material_name, c.average_cost
+                           FROM calculations c
+                           JOIN materials m ON c.material_used = m.material_id
+                           JOIN machines n ON c.machine_used = n.machine_id""")
+            calculations = cur.fetchall()
+            print(f"Fetched calculations: {calculations}")  # Debug statement
+    return calculations
 
+# Call the function to trigger the error and see the debug output
+fetch_calculations()
 
 ##### CALCULATIONS FUNCTIONS BACKEND
 
@@ -33,11 +71,10 @@ total_cost = 0
 average_cost_per_part = 0
 
 def fetch_options(query):
-    con = sqlite3.connect('nexttech_calculator.db')
-    cur = con.cursor()
-    cur.execute(query)
-    options = {row[1]: row[0] for row in cur.fetchall()}  # Map names to IDs
-    con.close()
+    with closing(get_db_connection()) as con:
+        with closing(con.cursor()) as cur:
+            cur.execute(query)
+            options = {row[1]: row[0] for row in cur.fetchall()}  # Map names to IDs
     return options
 
 def update_machine_options(machine_id_var, material_id_var, machine_id_menu, material_options, *args):
@@ -50,10 +87,10 @@ def update_machine_options(machine_id_var, material_id_var, machine_id_menu, mat
         return
     material_id = material_options[selected_material]
     query = "SELECT cb.in_machine, n.machine_name FROM combination cb JOIN machines n ON cb.in_machine = n.machine_id WHERE cb.using_material = ?"
-    con = sqlite3.connect('nexttech_calculator.db')
-    cur = con.cursor()
-    cur.execute(query, (material_id,))
-    machine_options = {row[1]: row[0] for row in cur.fetchall()}
+    with closing(get_db_connection()) as con:
+        with closing(con.cursor()) as cur:
+            cur.execute(query, (material_id,))
+            machine_options = {row[1]: row[0] for row in cur.fetchall()}
 
     machine_id_var.set("Choose One")
     machine_id_menu['menu'].delete(0, 'end')
@@ -148,140 +185,140 @@ def display_results(total_cost, average_cost_per_part, cost_breakdown):
 
 def calculate(project_name_entry, machine_id_var, material_id_var, parts_produced_entry, numbers_of_builds_entry, part_mass_entry, material_id_menu, material_options, part_height_entry, part_area_entry, support_material_entry):
         global total_cost, average_cost_per_part
-        con = sqlite3.connect('nexttech_calculator.db')
-        cur = con.cursor()
+        with closing(get_db_connection()) as con:
+            with closing(con.cursor()) as cur:
 
-        #project
-        project_name = project_name_entry.get()
-        parts_produced = int(parts_produced_entry.get())
-        numbers_of_builds = int(numbers_of_builds_entry.get())
+                #project
+                project_name = project_name_entry.get()
+                parts_produced = int(parts_produced_entry.get())
+                numbers_of_builds = int(numbers_of_builds_entry.get())
+                
+                machine_id = machine_options[machine_id_var.get()]
+                material_id = material_options[material_id_var.get()]
+
+                # Fetch the process based on the selected material and machine
+                query = "SELECT with_process FROM combination WHERE using_material = ? AND in_machine = ?"
+                process_id = cur.execute(query, (material_id, machine_id)).fetchone()
+                if process_id is None:
+                    messagebox.showerror("Error", "No process found for the selected machine and material.")
+                    return
+                process_id = process_id[0] 
+
+                query = "SELECT * FROM materials WHERE material_id = ?"
+                materials = cur.execute(query, (material_id,)).fetchone()
+                print(material_id, process_id)
+                if materials is None:
+                    messagebox.showerror("Error", "No materials found for the selected machine and process.")
+                    return
         
-        machine_id = machine_options[machine_id_var.get()]
-        material_id = material_options[material_id_var.get()]
+                machine = cur.execute("SELECT * FROM machines WHERE machine_id = ?", (machine_id,)).fetchone()
+                if machine is None:
+                    messagebox.showerror("Error", "No machine found with the selected ID.")
+                    return
 
-        # Fetch the process based on the selected material and machine
-        query = "SELECT with_process FROM combination WHERE using_material = ? AND in_machine = ?"
-        process_id = cur.execute(query, (material_id, machine_id)).fetchone()
-        if process_id is None:
-            messagebox.showerror("Error", "No process found for the selected machine and material.")
-            return
-        process_id = process_id[0] 
+                process = cur.execute("SELECT * FROM processes WHERE process_id = ?", (process_id,)).fetchone()
+                if process is None:
+                    messagebox.showerror("Error", "No process found with the selected ID.")
+                    return
 
-        query = "SELECT * FROM materials WHERE material_id = ?"
-        materials = cur.execute(query, (material_id,)).fetchone()
-        print(material_id, process_id)
-        if materials is None:
-            messagebox.showerror("Error", "No materials found for the selected machine and process.")
-            return
- 
-        machine = cur.execute("SELECT * FROM machines WHERE machine_id = ?", (machine_id,)).fetchone()
-        if machine is None:
-            messagebox.showerror("Error", "No machine found with the selected ID.")
-            return
+                operations = cur.execute("SELECT * FROM operations WHERE for_machine = ?", (machine_id,)).fetchone()
+                if operations is None:
+                    messagebox.showerror("Error", "No operations found for the selected machine.")
 
-        process = cur.execute("SELECT * FROM processes WHERE process_id = ?", (process_id,)).fetchone()
-        if process is None:
-            messagebox.showerror("Error", "No process found with the selected ID.")
-            return
+                #material
+                material_cost = materials[3] #dollar/kg
+                material_density = materials[2] #g/cm^3
 
-        operations = cur.execute("SELECT * FROM operations WHERE for_machine = ?", (machine_id,)).fetchone()
-        if operations is None:
-            messagebox.showerror("Error", "No operations found for the selected machine.")
+                #part
+                part_mass = float(part_mass_entry.get())
+                part_height = float(part_height_entry.get())
+                part_area = float(part_area_entry.get())
+                support_material = float(support_material_entry.get())
+                support_mass_per_part = support_material * part_mass #kg
+                part_material_volume = (part_mass * 1000) / material_density #cm^3
 
-        #material
-        material_cost = materials[3] #dollar/kg
-        material_density = materials[2] #g/cm^3
+                #machine
+                total_machine_cost = machine[2] #dollar
+                machine_lifetime = machine[3] #years
+                cost_of_capital = machine[4] #%
+                infrastructure_cost = machine[5] #% of machine cost up front
+                maintenance_cost = machine[6] #% of machine cost per year
+                machine_build_rate = machine[7] #cm^3/hr	
+                machine_build_area = machine[8] #cm^2
+                machine_build_height = machine[9] #cm
+                machine_uptime = machine[10] #%
+                machine_build_volume = (machine_build_area * machine_build_height) / 1000 #Liter
 
-        #part
-        part_mass = float(part_mass_entry.get())
-        part_height = float(part_height_entry.get())
-        part_area = float(part_area_entry.get())
-        support_material = float(support_material_entry.get())
-        support_mass_per_part = support_material * part_mass #kg
-        part_material_volume = (part_mass * 1000) / material_density #cm^3
+                #process
+                packing_policy = process[2] #2d or 3d
+                packing_fraction = process[3] #%
+                recycling_fraction = process[4] #%
+                additional_operating_cost = process[5] #dollar/hr
+                consumable_cost_per_build = process[6] #dollar
+                first_time_prep = process[7] #hours
+                subsequent_prep = process[8] #hours
+                time_per_build_setup = process[9] #hours
+                time_per_build_removal = process[10] #hours
+                time_per_machine_warmup = process[11] #hours
+                time_per_machine_cooldown = process[12] #hours
 
-        #machine
-        total_machine_cost = machine[2] #dollar
-        machine_lifetime = machine[3] #years
-        cost_of_capital = machine[4] #%
-        infrastructure_cost = machine[5] #% of machine cost up front
-        maintenance_cost = machine[6] #% of machine cost per year
-        machine_build_rate = machine[7] #cm^3/hr	
-        machine_build_area = machine[8] #cm^2
-        machine_build_height = machine[9] #cm
-        machine_uptime = machine[10] #%
-        machine_build_volume = (machine_build_area * machine_build_height) / 1000 #Liter
+                #post-process
+                removal_time_constant = machine[11] 
+                time_to_remove = (60*10**0.5)*removal_time_constant
 
-        #process
-        packing_policy = process[2] #2d or 3d
-        packing_fraction = process[3] #%
-        recycling_fraction = process[4] #%
-        additional_operating_cost = process[5] #dollar/hr
-        consumable_cost_per_build = process[6] #dollar
-        first_time_prep = process[7] #hours
-        subsequent_prep = process[8] #hours
-        time_per_build_setup = process[9] #hours
-        time_per_build_removal = process[10] #hours
-        time_per_machine_warmup = process[11] #hours
-        time_per_machine_cooldown = process[12] #hours
+                #operations
+                hours_per_day = operations[1] #hours/day
+                days_per_week = operations[2] #days/week
+                FTE_per_machine = operations[3]
+                FTE_build_exchange = operations[4]
+                FTE_support_removal = operations[5]
+                salary_engineer = operations[6] #dollar/hr
+                salary_operator = operations[7] #dollar/hr
+                salary_technician = operations[8] #dollar/hr
 
-        #post-process
-        removal_time_constant = machine[11] 
-        time_to_remove = (60*10**0.5)*removal_time_constant
+                material_cost_for_run = material_cost_calc(parts_produced, numbers_of_builds, part_mass, support_mass_per_part, machine_build_area, machine_build_height, material_density, recycling_fraction, material_cost)
+                build_prep_cost = build_prep(parts_produced, numbers_of_builds, subsequent_prep, first_time_prep, salary_engineer)
+                machine_usage_cost, consumables_cost, labor_cost = machine_cost(parts_produced, numbers_of_builds, total_machine_cost, infrastructure_cost, cost_of_capital, machine_lifetime, maintenance_cost, hours_per_day, days_per_week, machine_uptime, machine_build_rate, part_material_volume, time_per_machine_warmup, time_per_machine_cooldown, time_per_build_setup, time_per_build_removal, FTE_per_machine, FTE_build_exchange, salary_operator, additional_operating_cost, consumable_cost_per_build)
+                post_process_cost_for_run = post_process_cost(parts_produced, numbers_of_builds, removal_time_constant, part_area, salary_technician)
 
-        #operations
-        hours_per_day = operations[1] #hours/day
-        days_per_week = operations[2] #days/week
-        FTE_per_machine = operations[3]
-        FTE_build_exchange = operations[4]
-        FTE_support_removal = operations[5]
-        salary_engineer = operations[6] #dollar/hr
-        salary_operator = operations[7] #dollar/hr
-        salary_technician = operations[8] #dollar/hr
+                total_cost = material_cost_for_run + build_prep_cost + machine_usage_cost + consumables_cost + labor_cost + post_process_cost_for_run
+                average_cost_per_part = total_cost / parts_produced
 
-        material_cost_for_run = material_cost_calc(parts_produced, numbers_of_builds, part_mass, support_mass_per_part, machine_build_area, machine_build_height, material_density, recycling_fraction, material_cost)
-        build_prep_cost = build_prep(parts_produced, numbers_of_builds, subsequent_prep, first_time_prep, salary_engineer)
-        machine_usage_cost, consumables_cost, labor_cost = machine_cost(parts_produced, numbers_of_builds, total_machine_cost, infrastructure_cost, cost_of_capital, machine_lifetime, maintenance_cost, hours_per_day, days_per_week, machine_uptime, machine_build_rate, part_material_volume, time_per_machine_warmup, time_per_machine_cooldown, time_per_build_setup, time_per_build_removal, FTE_per_machine, FTE_build_exchange, salary_operator, additional_operating_cost, consumable_cost_per_build)
-        post_process_cost_for_run = post_process_cost(parts_produced, numbers_of_builds, removal_time_constant, part_area, salary_technician)
+                cost_breakdown = {
+                    "Material Cost": material_cost_for_run,
+                    "Build Prep Cost": build_prep_cost,
+                    "Machine Usage Cost": machine_usage_cost,
+                    "Consumables Cost": consumables_cost,
+                    "Labor Cost": labor_cost,
+                    "Post Process Cost": post_process_cost_for_run
+                }
 
-        total_cost = material_cost_for_run + build_prep_cost + machine_usage_cost + consumables_cost + labor_cost + post_process_cost_for_run
-        average_cost_per_part = total_cost / parts_produced
-
-        cost_breakdown = {
-            "Material Cost": material_cost_for_run,
-            "Build Prep Cost": build_prep_cost,
-            "Machine Usage Cost": machine_usage_cost,
-            "Consumables Cost": consumables_cost,
-            "Labor Cost": labor_cost,
-            "Post Process Cost": post_process_cost_for_run
-        }
-
-        display_results(total_cost, average_cost_per_part, cost_breakdown)
-        
-        messagebox.showinfo("Success", "Calculation completed successfully!")
+                display_results(total_cost, average_cost_per_part, cost_breakdown)
+                
+                messagebox.showinfo("Success", "Calculation completed successfully!")
 
 def save_calculation(name_pro, machine_id_var, material_id_var, parts_produced_entry, numbers_of_builds_entry):
         global total_cost, average_cost_per_part
-        con = sqlite3.connect('nexttech_calculator.db')
-        cur = con.cursor()
+        with closing(get_db_connection()) as con:
+            with closing(con.cursor()) as cur:
         
-        machine_id = machine_options[machine_id_var.get()]
-        material_id = material_options[material_id_var.get()]
-        parts_produced = int(parts_produced_entry.get())
-        numbers_of_builds = int(numbers_of_builds_entry.get())
-        project_name = name_pro.get()
+                machine_id = machine_options[machine_id_var.get()]
+                material_id = material_options[material_id_var.get()]
+                parts_produced = int(parts_produced_entry.get())
+                numbers_of_builds = int(numbers_of_builds_entry.get())
+                project_name = name_pro.get()
 
-        print(machine_id, material_id)
+                print(machine_id, material_id)
 
-        query = "SELECT with_process FROM combination WHERE using_material = ? AND in_machine = ?"
-        process_id = cur.execute(query, (material_id, machine_id)).fetchone()
-        process_id = process_id[0]       
+                query = "SELECT with_process FROM combination WHERE using_material = ? AND in_machine = ?"
+                process_id = cur.execute(query, (material_id, machine_id)).fetchone()
+                process_id = process_id[0]       
 
-        cur.execute("""INSERT INTO calculations (project_name, machine_used, material_used, parts_made, builds_done, process_used, total_cost, average_cost)
-                        VALUES(?,?,?,?,?,?,?,?)""", (project_name, machine_id, material_id, parts_produced, numbers_of_builds, process_id, total_cost, average_cost_per_part))
-        con.commit()
+                cur.execute("""INSERT INTO calculations (project_name, machine_used, material_used, parts_made, builds_done, process_used, total_cost, average_cost)
+                                VALUES(?,?,?,?,?,?,?,?)""", (project_name, machine_id, material_id, parts_produced, numbers_of_builds, process_id, total_cost, average_cost_per_part))
+                con.commit()
 
-        messagebox.showinfo("Success", "Calculation saved successfully!")
+                messagebox.showinfo("Success", "Calculation saved successfully!")
 
 
 
@@ -289,7 +326,8 @@ def save_calculation(name_pro, machine_id_var, material_id_var, parts_produced_e
 ##### LOGIN / ADMIN 
 
 # Users database file
-con = sqlite3.connect("nexttech_users.db")
+user_db_path = resource_path('nexttech_users.db')
+con = sqlite3.connect(user_db_path)
 previous_frame = None
 current_username = ""
 
@@ -609,7 +647,7 @@ def on_focus_out(entry, placeholder_text):
         entry.configure(fg_color="#D3D3D3")
 
 def connect_db():
-    conn = sqlite3.connect("nexttech_users.db")
+    conn = sqlite3.connect(user_db_path)
     return conn.cursor()
 
 # Function to search the Treeview based on query
@@ -629,26 +667,26 @@ def search_treeview(query):
 
 # Function to connect to the database and fetch all machines data
 def fetch_machines():
-    with closing(sqlite3.connect("nexttech_calculator.db")) as conn:
-        with closing(conn.cursor()) as cursor:
-            cursor.execute("SELECT * FROM machines")
-            machines = cursor.fetchall()
+    with closing(get_db_connection()) as con:
+        with closing(con.cursor()) as cur:
+            cur.execute("SELECT * FROM machines")
+            machines = cur.fetchall()
     return machines
 
 # Function to fetch attributes of the selected machine
 def fetch_machine_attributes(selected_machine):
-    with closing(sqlite3.connect("nexttech_calculator.db")) as conn:
-        with closing(conn.cursor()) as cursor:
-            cursor.execute("SELECT * FROM machines WHERE Machine_Name=?", (selected_machine,))
-            machine_attributes = cursor.fetchone()
+    with closing(get_db_connection()) as con:
+        with closing(con.cursor()) as cur:
+            cur.execute("SELECT * FROM machines WHERE Machine_Name=?", (selected_machine,))
+            machine_attributes = cur.fetchone()
     return machine_attributes
 
 # Function to fetch column names from the 'machines' table
 def fetch_machine_columns():
-    with closing(sqlite3.connect("nexttech_calculator.db")) as conn:
-        with closing(conn.cursor()) as cursor:
-            cursor.execute("PRAGMA table_info(machines)")
-            columns_machine = cursor.fetchall()
+    with closing(get_db_connection()) as con:
+        with closing(con.cursor()) as cur:
+            cur.execute("PRAGMA table_info(machines)")
+            columns_machine = cur.fetchall()
     return [column[1] for column in columns_machine]  # Extracting the column names
 
 # Function to create a Treeview for the selected machine
@@ -707,10 +745,10 @@ def create_new_machine():
             machine_name = values[0]  # Assuming that Machine_Name is the first column
 
             # Check if the machine name already exists
-            with closing(sqlite3.connect("nexttech_calculator.db")) as conn:
-                with closing(conn.cursor()) as cursor:
-                    cursor.execute("SELECT COUNT(*) FROM machines WHERE Machine_Name = ?", (machine_name,))
-                    count = cursor.fetchone()[0]
+            with closing(get_db_connection()) as con:
+                with closing(con.cursor()) as cur:
+                    cur.execute("SELECT COUNT(*) FROM machines WHERE Machine_Name = ?", (machine_name,))
+                    count = cur.fetchone()[0]
 
                     if count > 0:  # Machine name already exists
                         messagebox.showerror("Error", f"A machine with the name '{machine_name}' already exists.")
@@ -723,10 +761,10 @@ def create_new_machine():
             # Prepare the insert statement
             insert_query = f"INSERT INTO machines ({column_names}) VALUES ({placeholders})"
             
-            with closing(sqlite3.connect("nexttech_calculator.db")) as conn:
-                with closing(conn.cursor()) as cursor:
-                    cursor.execute(insert_query, values)  # Pass values to be inserted
-                    conn.commit()
+            with closing(get_db_connection()) as con:
+                with closing(con.cursor()) as cur:
+                    cur.execute(insert_query, values)  # Pass values to be inserted
+                    con.commit()
 
             messagebox.showinfo("Success", "Machine created successfully.")
             create_window.destroy()  # Close the window after success
@@ -771,13 +809,13 @@ def edit_machine():
                     new_machine_name = values[0]  # Assuming Machine_Name is the first field
 
                     # Check if the new machine name already exists (except for the selected machine)
-                    with closing(sqlite3.connect("nexttech_calculator.db")) as conn:
-                        with closing(conn.cursor()) as cursor:
-                            cursor.execute(
+                    with closing(get_db_connection()) as con:
+                        with closing(con.cursor()) as cur:
+                            cur.execute(
                                 "SELECT COUNT(*) FROM machines WHERE Machine_Name = ? AND Machine_Name != ?",
                                 (new_machine_name, selected_machine)
                             )
-                            count = cursor.fetchone()[0]
+                            count = cur.fetchone()[0]
 
                             if count > 0:  # New machine name already exists
                                 messagebox.showerror("Error", f"A machine with the name '{new_machine_name}' already exists.")
@@ -785,11 +823,11 @@ def edit_machine():
 
                             # Dynamically create the update query to update all fields
                             set_clause = ", ".join([f"{column} = ?" for column in machine_columns[1:]])  # Skip the ID column
-                            cursor.execute(
+                            cur.execute(
                                 f"UPDATE machines SET {set_clause} WHERE Machine_Name = ?",
                                 (*values, selected_machine)  # Pass all the values and selected machine name
                             )
-                            conn.commit()
+                            con.commit()
 
                     messagebox.showinfo("Success", "Machine updated successfully.")
                     edit_window.destroy()
@@ -817,11 +855,11 @@ def delete_machine():
             confirm = messagebox.askyesno("Delete Machine", f"Are you sure you want to delete the machine '{selected_machine}'?")
             
             if confirm:
-                with closing(sqlite3.connect("nexttech_calculator.db")) as conn:
-                    with closing(conn.cursor()) as cursor:
+                with closing(get_db_connection()) as con:
+                    with closing(con.cursor()) as cur:
                         # Delete the selected machine based on the Machine_Name
-                        cursor.execute("DELETE FROM machines WHERE Machine_Name = ?", (selected_machine,))
-                        conn.commit()
+                        cur.execute("DELETE FROM machines WHERE Machine_Name = ?", (selected_machine,))
+                        con.commit()
                 
                 messagebox.showinfo("Success", "Machine deleted successfully.")
             else:
@@ -834,26 +872,26 @@ def delete_machine():
 
 # Function to fetch column names from the 'operations' table
 def fetch_operation_columns():
-    with closing(sqlite3.connect("nexttech_calculator.db")) as conn:
-        with closing(conn.cursor()) as cursor:
-            cursor.execute("PRAGMA table_info(operations)")  # Fetch all column names
-            operation_columns = cursor.fetchall()
+    with closing(get_db_connection()) as con:
+        with closing(con.cursor()) as cur:
+            cur.execute("PRAGMA table_info(operations)")  # Fetch all column names
+            operation_columns = cur.fetchall()
     return [column[1] for column in operation_columns]  # Extract and return column names
 
 # Function to fetch all operations IDs for combobox
 def fetch_operations():
-    with closing(sqlite3.connect("nexttech_calculator.db")) as conn:
-        with closing(conn.cursor()) as cursor:
-            cursor.execute("SELECT operations_id FROM operations")
-            operations = cursor.fetchall()
+    with closing(get_db_connection()) as con:
+        with closing(con.cursor()) as cur:
+            cur.execute("SELECT operations_id FROM operations")
+            operations = cur.fetchall()
     return [operation for operation in operations]  # Extract operation IDs
 
 # Function to fetch attributes of the selected operation by ID
 def fetch_operation_attributes(selected_operation):
-    with closing(sqlite3.connect("nexttech_calculator.db")) as conn:
-        with closing(conn.cursor()) as cursor:
-            cursor.execute("SELECT * FROM operations WHERE operations_id=?", (selected_operation,))
-            operation_attributes = cursor.fetchone()
+    with closing(get_db_connection()) as con:
+        with closing(con.cursor()) as cur:
+            cur.execute("SELECT * FROM operations WHERE operations_id=?", (selected_operation,))
+            operation_attributes = cur.fetchone()
     return operation_attributes
 
 # Function to create a Treeview for the selected operation
@@ -913,10 +951,10 @@ def create_new_operation():
             operations_id = values[0]  # Assuming that Operation_Name is the first column
 
             # Check if the operation name already exists
-            with closing(sqlite3.connect("nexttech_calculator.db")) as conn:
-                with closing(conn.cursor()) as cursor:
-                    cursor.execute("SELECT COUNT(*) FROM operations WHERE operations_id = ?", (operations_id,))
-                    count = cursor.fetchone()[0]
+            with closing(get_db_connection()) as con:
+                with closing(con.cursor()) as cur:
+                    cur.execute("SELECT COUNT(*) FROM operations WHERE operations_id = ?", (operations_id,))
+                    count = cur.fetchone()[0]
 
                     if count > 0:  # Operation name already exists
                         messagebox.showerror("Error", f"An operation with the name '{operations_id}' already exists.")
@@ -929,10 +967,10 @@ def create_new_operation():
             # Prepare the insert statement
             insert_query = f"INSERT INTO operations ({column_names}) VALUES ({placeholders})"
             
-            with closing(sqlite3.connect("nexttech_calculator.db")) as conn:
-                with closing(conn.cursor()) as cursor:
-                    cursor.execute(insert_query, values)  # Pass values to be inserted
-                    conn.commit()
+            with closing(get_db_connection()) as con:
+                with closing(con.cursor()) as cur:
+                    cur.execute(insert_query, values)  # Pass values to be inserted
+                    con.commit()
 
             messagebox.showinfo("Success", "Operation created successfully.")
             create_window.destroy()  # Close the window after success
@@ -974,15 +1012,15 @@ def edit_operation():
             def save_edited_operation():
                 values = [entry.get() for entry in entry_fields.values()]
                 if all(values):  # Ensure all fields are filled
-                    with closing(sqlite3.connect("nexttech_calculator.db")) as conn:
-                        with closing(conn.cursor()) as cursor:
+                    with closing(get_db_connection()) as con:
+                        with closing(con.cursor()) as cur:
                             # Dynamically create the update query to update all fields
                             set_clause = ", ".join([f"{column} = ?" for column in operation_columns[1:]])  # Skip the ID column
-                            cursor.execute(
+                            cur.execute(
                                 f"UPDATE operations SET {set_clause} WHERE Operation_id = ?",
                                 (*values, selected_operation)  # Pass all the values and selected operation name
                             )
-                            conn.commit()
+                            con.commit()
                     messagebox.showinfo("Success", "Operation updated successfully.")
                     edit_window.destroy()
                 else:
@@ -1008,11 +1046,11 @@ def delete_operation():
             confirm = messagebox.askyesno("Delete Operation", f"Are you sure you want to delete the operation '{selected_operation}'?")
             
             if confirm:
-                with closing(sqlite3.connect("nexttech_calculator.db")) as conn:
-                    with closing(conn.cursor()) as cursor:
+                with closing(get_db_connection()) as con:
+                    with closing(con.cursor()) as cur:
                         # Delete the selected operation based on the Operations_id
-                        cursor.execute("DELETE FROM operations WHERE Operation_id = ?", (selected_operation,))
-                        conn.commit()
+                        cur.execute("DELETE FROM operations WHERE Operation_id = ?", (selected_operation,))
+                        con.commit()
                 
                 messagebox.showinfo("Success", "Operation deleted successfully.")
             else:
@@ -1026,26 +1064,26 @@ def delete_operation():
 
 # Function to connect to the database and fetch all processes data
 def fetch_processes():
-    with closing(sqlite3.connect("nexttech_calculator.db")) as conn:
-        with closing(conn.cursor()) as cursor:
-            cursor.execute("SELECT * FROM processes")
-            processes = cursor.fetchall()
+    with closing(get_db_connection()) as con:
+        with closing(con.cursor()) as cur:
+            cur.execute("SELECT * FROM processes")
+            processes = cur.fetchall()
     return processes
 
 # Function to fetch attributes of the selected process
 def fetch_process_attributes(selected_process):
-    with closing(sqlite3.connect("nexttech_calculator.db")) as conn:
-        with closing(conn.cursor()) as cursor:
-            cursor.execute("SELECT * FROM processes WHERE Process_Name=?", (selected_process,))
-            process_attributes = cursor.fetchone()
+    with closing(get_db_connection()) as con:
+        with closing(con.cursor()) as cur:
+            cur.execute("SELECT * FROM processes WHERE Process_Name=?", (selected_process,))
+            process_attributes = cur.fetchone()
     return process_attributes
 
 # Function to fetch column names from the 'processes' table
 def fetch_process_columns():
-    with closing(sqlite3.connect("nexttech_calculator.db")) as conn:
-        with closing(conn.cursor()) as cursor:
-            cursor.execute("PRAGMA table_info(processes)")
-            columns_processes = cursor.fetchall()
+    with closing(get_db_connection()) as con:
+        with closing(con.cursor()) as cur:
+            cur.execute("PRAGMA table_info(processes)")
+            columns_processes = cur.fetchall()
     return [column[1] for column in columns_processes]  # Extracting the column names
 
 # Function to create a Treeview for the selected process
@@ -1100,10 +1138,10 @@ def create_new_process():
             process_name = values[0]  # Assuming that Process_Name is the first column
 
             # Check if the process name already exists
-            with closing(sqlite3.connect("nexttech_calculator.db")) as conn:
-                with closing(conn.cursor()) as cursor:
-                    cursor.execute("SELECT COUNT(*) FROM processes WHERE Process_Name = ?", (process_name,))
-                    count = cursor.fetchone()[0]
+            with closing(get_db_connection()) as con:
+                with closing(con.cursor()) as cur:
+                    cur.execute("SELECT COUNT(*) FROM processes WHERE Process_Name = ?", (process_name,))
+                    count = cur.fetchone()[0]
 
                     if count > 0:  # Process name already exists
                         messagebox.showerror("Error", f"A process with the name '{process_name}' already exists.")
@@ -1116,10 +1154,10 @@ def create_new_process():
             # Prepare the insert statement
             insert_query = f"INSERT INTO processes ({column_names}) VALUES ({placeholders})"
             
-            with closing(sqlite3.connect("nexttech_calculator.db")) as conn:
-                with closing(conn.cursor()) as cursor:
-                    cursor.execute(insert_query, values)  # Pass values to be inserted
-                    conn.commit()
+            with closing(get_db_connection()) as con:
+                with closing(con.cursor()) as cur:
+                    cur.execute(insert_query, values)  # Pass values to be inserted
+                    con.commit()
 
             messagebox.showinfo("Success", "Process created successfully.")
             create_window.destroy()  # Close the window after success
@@ -1161,15 +1199,15 @@ def edit_process():
             def save_edited_process():
                 values = [entry.get() for entry in entry_fields.values()]
                 if all(values):  # Ensure all fields are filled
-                    with closing(sqlite3.connect("nexttech_calculator.db")) as conn:
-                        with closing(conn.cursor()) as cursor:
+                    with closing(get_db_connection()) as con:
+                        with closing(con.cursor()) as cur:
                             # Dynamically create the update query to update all fields
                             set_clause = ", ".join([f"{column} = ?" for column in process_columns[1:]])  # Skip the ID column
-                            cursor.execute(
+                            cur.execute(
                                 f"UPDATE processes SET {set_clause} WHERE Process_Name = ?",
                                 (*values, selected_process)  # Pass all the values and selected process name
                             )
-                            conn.commit()
+                            con.commit()
                     messagebox.showinfo("Success", "Process updated successfully.")
                     edit_window.destroy()
                 else:
@@ -1195,11 +1233,11 @@ def delete_process():
             confirm = messagebox.askyesno("Delete Process", f"Are you sure you want to delete the process '{selected_process}'?")
             
             if confirm:
-                with closing(sqlite3.connect("nexttech_calculator.db")) as conn:
-                    with closing(conn.cursor()) as cursor:
+                with closing(get_db_connection()) as con:
+                    with closing(con.cursor()) as cur:
                         # Delete the selected process based on the Process_Name
-                        cursor.execute("DELETE FROM processes WHERE Process_Name = ?", (selected_process,))
-                        conn.commit()
+                        cur.execute("DELETE FROM processes WHERE Process_Name = ?", (selected_process,))
+                        con.commit()
                 
                 messagebox.showinfo("Success", "Process deleted successfully.")
             else:
@@ -1212,26 +1250,26 @@ def delete_process():
 
 # Function to connect to the database and fetch all materials data
 def fetch_materials():
-    with closing(sqlite3.connect("nexttech_calculator.db")) as conn:
-        with closing(conn.cursor()) as cursor:
-            cursor.execute("SELECT * FROM materials")
-            materials = cursor.fetchall()
+    with closing(get_db_connection()) as con:
+        with closing(con.cursor()) as cur:
+            cur.execute("SELECT * FROM materials")
+            materials = cur.fetchall()
     return materials
 
 # Function to fetch attributes of the selected material
 def fetch_material_attributes(selected_material):
-    with closing(sqlite3.connect("nexttech_calculator.db")) as conn:
-        with closing(conn.cursor()) as cursor:
-            cursor.execute("SELECT * FROM materials WHERE Material_Name=?", (selected_material,))
-            material_attributes = cursor.fetchone()
+    with closing(get_db_connection()) as con:
+        with closing(con.cursor()) as cur:
+            cur.execute("SELECT * FROM materials WHERE Material_Name=?", (selected_material,))
+            material_attributes = cur.fetchone()
     return material_attributes
 
 # Function to fetch column names from the 'materials' table
 def fetch_material_columns():
-    with closing(sqlite3.connect("nexttech_calculator.db")) as conn:
-        with closing(conn.cursor()) as cursor:
-            cursor.execute("PRAGMA table_info(materials)")
-            columns_materials = cursor.fetchall()
+    with closing(get_db_connection()) as con:
+        with closing(con.cursor()) as cur:
+            cur.execute("PRAGMA table_info(materials)")
+            columns_materials = cur.fetchall()
     return [column[1] for column in columns_materials]  # Extracting the column names
 
 # Function to create a Treeview for the selected material
@@ -1286,10 +1324,10 @@ def create_new_material():
             material_name = values[0]  # Assuming that Material_Name is the first column
 
             # Check if the material name already exists
-            with closing(sqlite3.connect("nexttech_calculator.db")) as conn:
-                with closing(conn.cursor()) as cursor:
-                    cursor.execute("SELECT COUNT(*) FROM materials WHERE Material_Name = ?", (material_name,))
-                    count = cursor.fetchone()[0]
+            with closing(get_db_connection()) as con:
+                with closing(con.cursor()) as cur:
+                    cur.execute("SELECT COUNT(*) FROM materials WHERE Material_Name = ?", (material_name,))
+                    count = cur.fetchone()[0]
 
                     if count > 0:  # Material name already exists
                         messagebox.showerror("Error", f"A material with the name '{material_name}' already exists.")
@@ -1302,10 +1340,10 @@ def create_new_material():
             # Prepare the insert statement
             insert_query = f"INSERT INTO materials ({column_names}) VALUES ({placeholders})"
             
-            with closing(sqlite3.connect("nexttech_calculator.db")) as conn:
-                with closing(conn.cursor()) as cursor:
-                    cursor.execute(insert_query, values)  # Pass values to be inserted
-                    conn.commit()
+            with closing(get_db_connection()) as con:
+                with closing(con.cursor()) as cur:
+                    cur.execute(insert_query, values)  # Pass values to be inserted
+                    con.commit()
 
             messagebox.showinfo("Success", "Material created successfully.")
             create_window.destroy()  # Close the window after success
@@ -1347,15 +1385,15 @@ def edit_material():
             def save_edited_material():
                 values = [entry.get() for entry in entry_fields.values()]
                 if all(values):  # Ensure all fields are filled
-                    with closing(sqlite3.connect("nexttech_calculator.db")) as conn:
-                        with closing(conn.cursor()) as cursor:
+                    with closing(get_db_connection()) as con:
+                        with closing(con.cursor()) as cur:
                             # Dynamically create the update query to update all fields
                             set_clause = ", ".join([f"{column} = ?" for column in material_columns[1:]])  # Skip the ID column
-                            cursor.execute(
+                            cur.execute(
                                 f"UPDATE materials SET {set_clause} WHERE Material_Name = ?",
                                 (*values, selected_material)  # Pass all the values and selected material name
                             )
-                            conn.commit()
+                            con.commit()
                     messagebox.showinfo("Success", "Material updated successfully.")
                     edit_window.destroy()
                 else:
@@ -1381,11 +1419,11 @@ def delete_material():
             confirm = messagebox.askyesno("Delete Material", f"Are you sure you want to delete the material '{selected_material}'?")
             
             if confirm:
-                with closing(sqlite3.connect("nexttech_calculator.db")) as conn:
-                    with closing(conn.cursor()) as cursor:
+                with closing(get_db_connection()) as con:
+                    with closing(con.cursor()) as cur:
                         # Delete the selected material based on the Material_Name
-                        cursor.execute("DELETE FROM materials WHERE Material_Name = ?", (selected_material,))
-                        conn.commit()
+                        cur.execute("DELETE FROM materials WHERE Material_Name = ?", (selected_material,))
+                        con.commit()
                 
                 messagebox.showinfo("Success", "Material deleted successfully.")
             else:
@@ -1397,8 +1435,9 @@ def delete_material():
 
 # MAIN WINDOW
 root = tk.Tk()
+icon_path = resource_path('next.ico')
 root.title("Nexttech Calculator")
-root.iconbitmap("next.ico")
+root.iconbitmap(icon_path)
 root.geometry("1280x720")  # Set initial app window size
 root.config(background ="#333333" )
 root.grid_rowconfigure(0, weight=1)  # Allow row 0 to expand
@@ -1418,7 +1457,8 @@ for i in range(5):
     background_frame.grid_columnconfigure(i, weight=1)
 
 # Nexttech Logo on login screen
-image = Image.open("Nexttech logo.png")  
+image_path = resource_path('Nexttech logo.png')
+image = Image.open(image_path)  
 image = image.resize((108, 108), Image.Resampling.LANCZOS)  # Resize image if needed
 tk_image = ImageTk.PhotoImage(image)
 
@@ -1434,8 +1474,8 @@ canvas.grid(row=3, column=2, columnspan=1, rowspan=1, padx=0, pady=0)
 create_rounded_rectangle(canvas, 0, 0, 250, 150, radius=25, fill="#D9D9D9")
 
 # Create an image button
-image_path = "button login.png"  # Replace with your image file path
-image = Image.open(image_path)
+button_path = resource_path("button login.png")
+image = Image.open(button_path)
 image = image.resize((75, 40), Image.Resampling.LANCZOS)  # Resize to a button-friendly size
 photo_image = ImageTk.PhotoImage(image)
 
@@ -2143,11 +2183,20 @@ submit_button = ctk.CTkButton(New_calculation_frame, command=lambda: calculate(n
 submit_button.place(x=500, y=620)
 
 ###### HISTORY PAGE
-cur.execute("""SELECT c.calculation_id, c.date, c.project_name, n.machine_name, m.material_name, c.average_cost
-            FROM calculations c
-            JOIN materials m ON c.material_used = m.material_id
-            JOIN machines n ON c.machine_used = n.machine_id""")
-rows = cur.fetchall()
+def fetch_calculations():
+    with closing(get_db_connection()) as con:
+        with closing(con.cursor()) as cur:
+            print("Fetching calculations...")  # Debug statement
+            cur.execute("""SELECT c.calculation_id, c.date, c.project_name, n.machine_name, m.material_name, c.average_cost
+                           FROM calculations c
+                           JOIN materials m ON c.material_used = m.material_id
+                           JOIN machines n ON c.machine_used = n.machine_id""")
+            calculations = cur.fetchall()
+            print(f"Fetched calculations: {calculations}")  # Debug statement
+    return calculations
+
+# Call the function to trigger the error and see the debug output
+fetch_calculations()
 
 master = ctk.CTkFrame(Calculation_history_frame,
                     fg_color=("#CDCCCC"),
