@@ -2147,6 +2147,7 @@ cur.execute("""SELECT c.calculation_id, c.date, c.project_name, n.machine_name, 
             FROM calculations c
             JOIN materials m ON c.material_used = m.material_id
             JOIN machines n ON c.machine_used = n.machine_id""")
+rows = cur.fetchall()
 
 master = ctk.CTkFrame(Calculation_history_frame,
                     fg_color=("#CDCCCC"),
@@ -2157,7 +2158,7 @@ master.place(x=140, y=25)
 
 headers = ["ID", "Date", "Project Name", "Machine", "Material", "Cost per part", "Details"]
 sort_order = ["ASC", "DESC"]
-current_order = [0, 0, 0, 0]
+current_order = [0] * (len(headers) - 1)  # Initialize current_order with the correct length
 
 for j, header in enumerate(headers):
     header_label = ctk.CTkLabel(master, text=header, font=("Arial", 16, "bold"))
@@ -2165,15 +2166,19 @@ for j, header in enumerate(headers):
 
 def sort_by_column(column_index):
     global current_order
-    sort_columns = ["c.calculation_id","c.date","c.project_name", "n.machine_name", "m.material_name", "c.average_cost"]
+    sort_columns = ["c.calculation_id", "c.date", "c.project_name", "n.machine_name", "m.material_name", "c.average_cost"]
+    if column_index < 0 or column_index >= len(current_order):
+        print(f"Invalid column index: {column_index}")
+        return
     order = sort_order[current_order[column_index]]
     cur.execute(f"""SELECT c.calculation_id, c.date, c.project_name, n.machine_name, m.material_name, c.average_cost
                     FROM calculations c
                     JOIN materials m ON c.material_used = m.material_id
                     JOIN machines n ON c.machine_used = n.machine_id
                     ORDER BY {sort_columns[column_index]} {order}""")
+    rows = cur.fetchall()
     current_order[column_index] = 1 - current_order[column_index]
-    update_table()
+    update_table(rows)
 
 def view_details(calculation_id):
     cur.execute(f"""SELECT c.calculation_id, c.date, c.project_name, c.machine_used, c.material_used, c.parts_made, c.builds_done, c.total_cost, c.average_cost,
@@ -2210,15 +2215,16 @@ def view_details(calculation_id):
     canvas.draw()
     canvas.get_tk_widget().grid(row=1, column=0, sticky='nsew')
 
-def update_table():
+def update_table(rows=None):
     for widget in master.winfo_children():
         if isinstance(widget, ctk.CTkLabel) or isinstance(widget, ctk.CTkButton):
             widget.destroy()
     for j, header in enumerate(headers):
         header_button = ctk.CTkButton(master, text=header, text_color="black", font=("Arial", 16, "bold"), fg_color="#C6C5C5", border_width=2, border_color="#0377AC", command=lambda j=j: sort_by_column(j))
         header_button.grid(row=0, column=j, padx=10, pady=5)
-    cur.execute("SELECT c.calculation_id, c.date, c.project_name, n.machine_name, m.material_name, c.average_cost FROM calculations c JOIN materials m ON c.material_used = m.material_id JOIN machines n ON c.machine_used = n.machine_id")
-    rows = cur.fetchall()
+    if rows is None:
+        cur.execute("SELECT c.calculation_id, c.date, c.project_name, n.machine_name, m.material_name, c.average_cost FROM calculations c JOIN materials m ON c.material_used = m.material_id JOIN machines n ON c.machine_used = n.machine_id")
+        rows = cur.fetchall()
     for i, row in enumerate(rows):
         for j, value in enumerate(row):
             cell = ctk.CTkLabel(master, text=value, font=("Arial", 12), text_color="#0377AC")

@@ -3,9 +3,15 @@ from tkinter import messagebox
 from tkinter import Tk, Label, Entry, Button, StringVar, OptionMenu
 from tkinter import *
 import customtkinter as c
+from tkinter import *
+import customtkinter as c
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import sqlite3
+from functools import partial
+
+total_cost = 0
+average_cost_per_part = 0
 from functools import partial
 
 total_cost = 0
@@ -134,13 +140,17 @@ def calculate(project_name_entry, machine_id_var, material_id_var, parts_produce
 
         #project
         project_name = project_name_entry.get()
+        #project
+        project_name = project_name_entry.get()
         parts_produced = int(parts_produced_entry.get())
         numbers_of_builds = int(numbers_of_builds_entry.get())
+        
         
         machine_id = machine_options[machine_id_var.get()]
         material_id = material_options[material_id_var.get()]
 
         # Fetch the process based on the selected material and machine
+        query = "SELECT with_process FROM combination WHERE using_material = ? AND in_machine = ?"
         query = "SELECT with_process FROM combination WHERE using_material = ? AND in_machine = ?"
         process_id = cur.execute(query, (material_id, machine_id)).fetchone()
         if process_id is None:
@@ -151,9 +161,13 @@ def calculate(project_name_entry, machine_id_var, material_id_var, parts_produce
         query = "SELECT * FROM materials WHERE material_id = ?"
         materials = cur.execute(query, (material_id,)).fetchone()
         print(material_id, process_id)
+        query = "SELECT * FROM materials WHERE material_id = ?"
+        materials = cur.execute(query, (material_id,)).fetchone()
+        print(material_id, process_id)
         if materials is None:
             messagebox.showerror("Error", "No materials found for the selected machine and process.")
             return
+ 
  
         machine = cur.execute("SELECT * FROM machines WHERE machine_id = ?", (machine_id,)).fetchone()
         if machine is None:
@@ -208,6 +222,7 @@ def calculate(project_name_entry, machine_id_var, material_id_var, parts_produce
 
         #post-process
         removal_time_constant = machine[11] 
+        removal_time_constant = machine[11] 
         time_to_remove = (60*10**0.5)*removal_time_constant
 
         #operations
@@ -224,7 +239,13 @@ def calculate(project_name_entry, machine_id_var, material_id_var, parts_produce
         build_prep_cost = build_prep(parts_produced, numbers_of_builds, subsequent_prep, first_time_prep, salary_engineer)
         machine_usage_cost, consumables_cost, labor_cost = machine_cost(parts_produced, numbers_of_builds, total_machine_cost, infrastructure_cost, cost_of_capital, machine_lifetime, maintenance_cost, hours_per_day, days_per_week, machine_uptime, machine_build_rate, part_material_volume, time_per_machine_warmup, time_per_machine_cooldown, time_per_build_setup, time_per_build_removal, FTE_per_machine, FTE_build_exchange, salary_operator, additional_operating_cost, consumable_cost_per_build)
         post_process_cost_for_run = post_process_cost(parts_produced, numbers_of_builds, removal_time_constant, part_area, salary_technician)
+        material_cost_for_run = material_cost_calc(parts_produced, numbers_of_builds, part_mass, support_mass_per_part, machine_build_area, machine_build_height, material_density, recycling_fraction, material_cost)
+        build_prep_cost = build_prep(parts_produced, numbers_of_builds, subsequent_prep, first_time_prep, salary_engineer)
+        machine_usage_cost, consumables_cost, labor_cost = machine_cost(parts_produced, numbers_of_builds, total_machine_cost, infrastructure_cost, cost_of_capital, machine_lifetime, maintenance_cost, hours_per_day, days_per_week, machine_uptime, machine_build_rate, part_material_volume, time_per_machine_warmup, time_per_machine_cooldown, time_per_build_setup, time_per_build_removal, FTE_per_machine, FTE_build_exchange, salary_operator, additional_operating_cost, consumable_cost_per_build)
+        post_process_cost_for_run = post_process_cost(parts_produced, numbers_of_builds, removal_time_constant, part_area, salary_technician)
 
+        total_cost = material_cost_for_run + build_prep_cost + machine_usage_cost + consumables_cost + labor_cost + post_process_cost_for_run
+        average_cost_per_part = total_cost / parts_produced
         total_cost = material_cost_for_run + build_prep_cost + machine_usage_cost + consumables_cost + labor_cost + post_process_cost_for_run
         average_cost_per_part = total_cost / parts_produced
 
@@ -236,7 +257,17 @@ def calculate(project_name_entry, machine_id_var, material_id_var, parts_produce
             "Labor Cost": labor_cost,
             "Post Process Cost": post_process_cost_for_run
         }
+        cost_breakdown = {
+            "Material Cost": material_cost_for_run,
+            "Build Prep Cost": build_prep_cost,
+            "Machine Usage Cost": machine_usage_cost,
+            "Consumables Cost": consumables_cost,
+            "Labor Cost": labor_cost,
+            "Post Process Cost": post_process_cost_for_run
+        }
 
+        display_results(total_cost, average_cost_per_part, cost_breakdown)
+        
         display_results(total_cost, average_cost_per_part, cost_breakdown)
         
         messagebox.showinfo("Success", "Calculation completed successfully!")
@@ -354,6 +385,87 @@ label4 = c.CTkLabel(root, text="Pick machine:", font=("Arial", 18), text_color=(
                     anchor="e", width=180)
 label4.place(x=270, y=320)
 
+# Create the main window
+root = c.CTk()
+root.title("Calculator")
+root.geometry("1280x720")
+root.config(bg= "#333333")
+
+#Frame around head menue, remove when we have a menu
+framehm = c.CTkFrame(root,
+                    fg_color=("#000000"),
+                    bg_color=("#333333"),
+                    height=670,
+                    width=181)
+framehm.place(x=25, y=25)
+
+#Frame around calculation
+frame2 = c.CTkFrame(root,
+                    fg_color=("#CDCCCC"),
+                    bg_color=("#333333"),
+                    height=670,
+                    width=510)
+frame2.place(x=740, y=25)
+
+#Headline Calculation
+overskrift2 = c.CTkLabel(root, text = "Calculation",
+                        font = ("Arial",32, "bold"),
+                        text_color=("#0377AC"),
+                        bg_color =("#CDCCCC"),width=300, justify=CENTER)
+overskrift2.place(x=840, y=35,)
+
+# Save button, MISSING A COMMAND
+save_button = c.CTkButton(root, command=lambda: save_calculation(name_pro, machine_id_var, material_id_var, parts_produced_entry, numbers_of_builds_entry),
+                        text="Save calculation",
+                        font=("Arial", 24),
+                        text_color=("#FFFFFF"),
+                        fg_color=("#0377AC"),
+                        bg_color=("#CDCCCC"),
+                        height=40, width=300, anchor="center",
+                        hover_color="#034868",
+                        corner_radius=20)
+save_button.place(x=840, y=620)
+
+# Space for GUI Calculation 
+
+
+
+
+
+
+#Frame around calculator 
+frame1 = c.CTkFrame(root,
+                    fg_color=("#CDCCCC"),
+                    bg_color=("#333333"),
+                    height=670,
+                    width=480)
+frame1.place(x=231, y=25)
+
+#Headline
+overskrift1 = c.CTkLabel(root, text = "New calculation",
+                        font = ("Arial",32, "bold"),
+                        text_color=("#0377AC"),
+                        bg_color =("#CDCCCC"),width=300, justify=CENTER)
+overskrift1.place(x=321, y=35,)
+
+
+
+# Name project, MISSING A COMMAND
+name_pro = c.CTkEntry(root,
+                        placeholder_text="Name your project",
+                        font=("Arial", 20),
+                        text_color=("#0377AC"),
+                        fg_color=("#FFFFFF"), bg_color=("#CDCCCC"),
+                        height=35, width=300,
+                        corner_radius=20, border_color="#0377AC", border_width=2)
+name_pro.place(x=321, y=85)
+
+
+#Pick Machine; dropdown menus
+label4 = c.CTkLabel(root, text="Pick machine:", font=("Arial", 18), text_color=("#0377AC"), bg_color=("#CDCCCC"),
+                    anchor="e", width=180)
+label4.place(x=270, y=320)
+
 machine_id_var = StringVar(root)
 machine_id_var.set("Choose One")  # default value
 machine_id_menu = OptionMenu(root, machine_id_var, "Choose One")
@@ -376,7 +488,32 @@ label1 = c.CTkLabel(root, text="Enter parts produced:", font=("Arial", 18), text
 label1.place(x=270, y=170)
 parts_produced_entry = c.CTkEntry(root, fg_color=("#FFFFFF"), bg_color=("#CDCCCC"), height=30, width=177, corner_radius=20, border_color="#0377AC", border_width=2)
 parts_produced_entry.place(x=480, y=170)
+machine_id_menu.place(x=480, y=320)
 
+# Pick Materials; dropdown menus
+label3 = c.CTkLabel(root, text="Pick material:", font=("Arial", 18), text_color=("#0377AC"), bg_color=("#CDCCCC"),
+                    anchor="e", width=180)
+label3.place(x=270, y=270)
+
+material_id_var = StringVar(root)
+material_id_var.set("Choose One")  # default value
+material_id_var.trace_add('write', partial(update_machine_options, machine_id_var, material_id_var, machine_id_menu, material_options))
+material_id_menu = OptionMenu(root, material_id_var, *material_options.keys())
+material_id_menu.place(x=480, y=270)
+
+# Enter parts produced
+label1 = c.CTkLabel(root, text="Enter parts produced:", font=("Arial", 18), text_color=("#0377AC"), bg_color=("#CDCCCC"),
+                    anchor="e", width=180)
+label1.place(x=270, y=170)
+parts_produced_entry = c.CTkEntry(root, fg_color=("#FFFFFF"), bg_color=("#CDCCCC"), height=30, width=177, corner_radius=20, border_color="#0377AC", border_width=2)
+parts_produced_entry.place(x=480, y=170)
+
+# Enter number of builds
+label2 = c.CTkLabel(root, text="Enter number of builds:", font=("Arial", 18), text_color=("#0377AC"), bg_color=("#CDCCCC"),
+                    anchor="e", width=180)
+label2.place(x=270, y=220)
+numbers_of_builds_entry = c.CTkEntry(root, fg_color=("#FFFFFF"), bg_color=("#CDCCCC"), height=30, width=177, corner_radius=20, border_color="#0377AC", border_width=2)
+numbers_of_builds_entry.place(x=480, y=220)
 # Enter number of builds
 label2 = c.CTkLabel(root, text="Enter number of builds:", font=("Arial", 18), text_color=("#0377AC"), bg_color=("#CDCCCC"),
                     anchor="e", width=180)
@@ -427,8 +564,61 @@ reset_button = c.CTkButton(root,
                         hover_color="#333333",
                         corner_radius=20)
 reset_button.place(x=279, y=620)
+# Enter part mass in kg 
+label5 = c.CTkLabel(root, text="Enter part mass in kg:", font=("Arial", 18), text_color=("#0377AC"), bg_color=("#CDCCCC"),
+                    anchor="e", width=180)
+label5.place(x=270, y=370)
+part_mass_entry = c.CTkEntry(root, fg_color=("#FFFFFF"), bg_color=("#CDCCCC"), height=30, width=177, corner_radius=20, border_color="#0377AC", border_width=2,
+                             placeholder_text="Kg.", placeholder_text_color=("#7A7A7A"))
+part_mass_entry.place(x=480, y=370)
+
+# Enter part height in cm
+label6 = c.CTkLabel(root, text="Enter part height in cm:", font=("Arial", 18), text_color=("#0377AC"), bg_color=("#CDCCCC"),
+                    anchor="e", width=180)
+label6.place(x=270, y=420)
+part_height_entry = c.CTkEntry(root, fg_color=("#FFFFFF"), bg_color=("#CDCCCC"), height=30, width=177, corner_radius=20, border_color="#0377AC", border_width=2,
+                               placeholder_text="cm", placeholder_text_color=("#7A7A7A"))
+part_height_entry.place(x=480, y=420)
+
+# Enter part area in cm^2
+label7 = c.CTkLabel(root, text="Enter part area in cm^2:", font=("Arial", 18), text_color=("#0377AC"), bg_color=("#CDCCCC"),
+                    anchor="e", width=180)
+label7.place(x=270, y=470)
+part_area_entry = c.CTkEntry(root, fg_color=("#FFFFFF"), bg_color=("#CDCCCC"), height=30, width=177, corner_radius=20, border_color="#0377AC", border_width=2,
+                                    placeholder_text="cm^2", placeholder_text_color=("#7A7A7A"))
+part_area_entry.place(x=480, y=470)
+
+# Enter support material as percent of mass
+label8 = c.CTkLabel(root, text="Enter support material:", font=("Arial", 18), text_color=("#0377AC"), bg_color=("#CDCCCC"),
+                    anchor="e", width=180)
+label8.place(x=270, y=520)
+support_material_entry = c.CTkEntry(root, fg_color=("#FFFFFF"), bg_color=("#CDCCCC"), height=30, width=177, corner_radius=20, border_color="#0377AC", border_width=2,
+                                    placeholder_text="percent of mass (ex.0.15)", placeholder_text_color=("#7A7A7A"))
+support_material_entry.place(x=480, y=520)
+
+# Reset button, MISSING A COMMAND
+reset_button = c.CTkButton(root,
+                        text="Reset",
+                        font=("Arial", 24),
+                        text_color=("#FFFFFF"),
+                        fg_color=("#5F6669"),
+                        bg_color=("#CDCCCC"),
+                        height=40, width=150,
+                        hover_color="#333333",
+                        corner_radius=20)
+reset_button.place(x=279, y=620)
 
 # Create and place the submit button
+submit_button = c.CTkButton(root, command=lambda: calculate(name_pro, machine_id_var, material_id_var, parts_produced_entry, numbers_of_builds_entry, part_mass_entry, material_id_menu, material_options, part_height_entry, part_area_entry, support_material_entry),
+                        text="Submit",
+                        font=("Arial", 24),
+                        text_color=("#FFFFFF"),
+                        fg_color=("#77AC03"),
+                        bg_color=("#CDCCCC"),
+                        height=40, width=150,
+                        hover_color="#527605",
+                        corner_radius=20)
+submit_button.place(x=500, y=620)
 submit_button = c.CTkButton(root, command=lambda: calculate(name_pro, machine_id_var, material_id_var, parts_produced_entry, numbers_of_builds_entry, part_mass_entry, material_id_menu, material_options, part_height_entry, part_area_entry, support_material_entry),
                         text="Submit",
                         font=("Arial", 24),
