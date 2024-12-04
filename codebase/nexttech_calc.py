@@ -27,7 +27,6 @@ def resource_path(relative_path):
 def get_db_connection():
     """ Get a connection to the database """
     db_path = resource_path('nexttech_calculator.db')
-    print(f"Database path: {db_path}")  # Debug statement
     if not os.path.exists(db_path):
         print("Database file does not exist!")  # Debug statement
     else:
@@ -39,31 +38,6 @@ con = get_db_connection()
 cur = con.cursor()
 cur.execute("SELECT name FROM sqlite_master WHERE type='table';")
 tables = cur.fetchall()
-print(f"Tables in the database: {tables}")  # Debug statement
-
-# Verify the contents of the 'calculations' table
-try:
-    cur.execute("SELECT * FROM calculations LIMIT 1;")
-    calculations_sample = cur.fetchone()
-    print(f"Sample data from 'calculations' table: {calculations_sample}")  # Debug statement
-except sqlite3.OperationalError as e:
-    print(f"Error accessing 'calculations' table: {e}")  # Debug statement
-
-# Add the part where the error occurs
-def fetch_calculations():
-    with closing(get_db_connection()) as con:
-        with closing(con.cursor()) as cur:
-            print("Fetching calculations...")  # Debug statement
-            cur.execute("""SELECT c.calculation_id, c.date, c.project_name, n.machine_name, m.material_name, c.average_cost
-                           FROM calculations c
-                           JOIN materials m ON c.material_used = m.material_id
-                           JOIN machines n ON c.machine_used = n.machine_id""")
-            calculations = cur.fetchall()
-            print(f"Fetched calculations: {calculations}")  # Debug statement
-    return calculations
-
-# Call the function to trigger the error and see the debug output
-fetch_calculations()
 
 ##### CALCULATIONS FUNCTIONS BACKEND
 
@@ -384,7 +358,6 @@ def validate_password(password):
 def add_user(new_username, password, role):
     global con
     hashed_password = hash_password(password)
-    print(f"Debug: Attempting to add user '{new_username}' with role '{role}'")
     try:
         with closing(con.cursor()) as c:
             # Check if the username already exists
@@ -396,7 +369,6 @@ def add_user(new_username, password, role):
             c.execute("INSERT INTO users (username, password, role) VALUES (?, ?, ?)", 
                             (new_username, hashed_password, role))
             con.commit()
-            print(f"Debug: User '{new_username}' created successfully!")
             return True 
     except sqlite3.Error as e:
         handle_db_error(e)
@@ -406,13 +378,11 @@ def add_user(new_username, password, role):
 def verify_user(username, password):
     global con
     hashed_password = hash_password(password)
-    print(f"Debug: Attempting to verify user '{username}' with hashed password '{hashed_password}'")
     try:       
         with closing(con.cursor()) as c:
             c.execute("SELECT role FROM users WHERE username = ? AND password = ?", 
                             (username, hashed_password))
             result = c.fetchone()
-            print(f"Debug: Query result - {result}")
             return result[0] if result else None
     except sqlite3.Error as e:
         handle_db_error(e)
@@ -425,9 +395,6 @@ def login():
     # Read values from the entry fields
     username = username_entry_login.get().strip()  # Use the renamed variable
     password = password_entry_login.get().strip()  # Use the renamed variable
-
-    # Debug: Print username and password before verification
-    print(f"Debug: Username entered: '{username}', Password entered: '{password}'")
 
     user_role = verify_user(username, password)
     if user_role:
@@ -602,7 +569,6 @@ def display_users():
         with closing(con.cursor()) as c:
             c.execute("SELECT id, username, role FROM users")
             users = c.fetchall()
-            print(f"Debug: Current users in DB: {users}")
 
             # Insert users into the treeview along with the edit option
             for user in users:
@@ -708,7 +674,6 @@ def on_machine_selected(event):
     selected_machine = combobox_machine.get()
     machine_data = fetch_machine_attributes(selected_machine)
     
-    print(f"Debug: Machine data fetched: {machine_data}")  # Check the fetched data
     
     if machine_data:
         populate_machine_treeview(frame, machine_data)
@@ -1102,7 +1067,6 @@ def populate_process_treeview(frame, process_data):
 def on_process_selected(event):
     selected_process = combobox_process.get()
     process_data = fetch_process_attributes(selected_process)
-    print(f"Debug: Process data fetched: {process_data}")  # Check the fetched data
     if process_data:
         populate_process_treeview(frame, process_data)
     else:
@@ -1288,7 +1252,6 @@ def populate_material_treeview(frame, material_data):
 def on_material_selected(event):
     selected_material = combobox_material.get()
     material_data = fetch_material_attributes(selected_material)
-    print(f"Debug: Material data fetched: {material_data}")  # Check the fetched data
     if material_data:
         populate_material_treeview(frame, material_data)
     else:
@@ -2048,7 +2011,7 @@ overskrift2 = ctk.CTkLabel(New_calculation_frame, text = "Calculation",
                         bg_color =("#CDCCCC"),width=300, justify=CENTER)
 overskrift2.place(x=840, y=35,)
 
-# Save button, MISSING A COMMAND
+# Save button
 save_button = ctk.CTkButton(New_calculation_frame, command=lambda: save_calculation(name_pro, machine_id_var, material_id_var, parts_produced_entry, numbers_of_builds_entry),
                         text="Save calculation",
                         font=("Arial", 24),
@@ -2080,7 +2043,7 @@ overskrift1.place(x=321, y=35,)
 
 
 
-# Name project, MISSING A COMMAND
+# Name project
 name_pro = ctk.CTkEntry(New_calculation_frame,
                         placeholder_text="Name your project",
                         font=("Arial", 20),
@@ -2116,21 +2079,21 @@ material_id_menu.place(x=480, y=270)
 label1 = ctk.CTkLabel(New_calculation_frame, text="Enter parts produced:", font=("Arial", 18), text_color=("#0377AC"), bg_color=("#CDCCCC"),
                     anchor="e", width=180)
 label1.place(x=270, y=170)
-parts_produced_entry = ctk.CTkEntry(New_calculation_frame, fg_color=("#FFFFFF"), bg_color=("#CDCCCC"), height=30, width=177, corner_radius=20, border_color="#0377AC", border_width=2)
+parts_produced_entry = ctk.CTkEntry(New_calculation_frame, fg_color=("#FFFFFF"), bg_color=("#CDCCCC"), text_color=("#0377AC"), height=30, width=177, corner_radius=20, border_color="#0377AC", border_width=2)
 parts_produced_entry.place(x=480, y=170)
 
 # Enter number of builds
 label2 = ctk.CTkLabel(New_calculation_frame, text="Enter number of builds:", font=("Arial", 18), text_color=("#0377AC"), bg_color=("#CDCCCC"),
                     anchor="e", width=180)
 label2.place(x=270, y=220)
-numbers_of_builds_entry = ctk.CTkEntry(New_calculation_frame, fg_color=("#FFFFFF"), bg_color=("#CDCCCC"), height=30, width=177, corner_radius=20, border_color="#0377AC", border_width=2)
+numbers_of_builds_entry = ctk.CTkEntry(New_calculation_frame, fg_color=("#FFFFFF"), bg_color=("#CDCCCC"), text_color=("#0377AC"), height=30, width=177, corner_radius=20, border_color="#0377AC", border_width=2)
 numbers_of_builds_entry.place(x=480, y=220)
 
 # Enter part mass in kg 
 label5 = ctk.CTkLabel(New_calculation_frame, text="Enter part mass in kg:", font=("Arial", 18), text_color=("#0377AC"), bg_color=("#CDCCCC"),
                     anchor="e", width=180)
 label5.place(x=270, y=370)
-part_mass_entry = ctk.CTkEntry(New_calculation_frame, fg_color=("#FFFFFF"), bg_color=("#CDCCCC"), height=30, width=177, corner_radius=20, border_color="#0377AC", border_width=2,
+part_mass_entry = ctk.CTkEntry(New_calculation_frame, fg_color=("#FFFFFF"), bg_color=("#CDCCCC"), text_color=("#0377AC"), height=30, width=177, corner_radius=20, border_color="#0377AC", border_width=2,
                              placeholder_text="Kg.", placeholder_text_color=("#7A7A7A"))
 part_mass_entry.place(x=480, y=370)
 
@@ -2138,7 +2101,7 @@ part_mass_entry.place(x=480, y=370)
 label6 = ctk.CTkLabel(New_calculation_frame, text="Enter part height in cm:", font=("Arial", 18), text_color=("#0377AC"), bg_color=("#CDCCCC"),
                     anchor="e", width=180)
 label6.place(x=270, y=420)
-part_height_entry = ctk.CTkEntry(New_calculation_frame, fg_color=("#FFFFFF"), bg_color=("#CDCCCC"), height=30, width=177, corner_radius=20, border_color="#0377AC", border_width=2,
+part_height_entry = ctk.CTkEntry(New_calculation_frame, fg_color=("#FFFFFF"), bg_color=("#CDCCCC"), text_color=("#0377AC"), height=30, width=177, corner_radius=20, border_color="#0377AC", border_width=2,
                                placeholder_text="cm", placeholder_text_color=("#7A7A7A"))
 part_height_entry.place(x=480, y=420)
 
@@ -2146,7 +2109,7 @@ part_height_entry.place(x=480, y=420)
 label7 = ctk.CTkLabel(New_calculation_frame, text="Enter part area in cm^2:", font=("Arial", 18), text_color=("#0377AC"), bg_color=("#CDCCCC"),
                     anchor="e", width=180)
 label7.place(x=270, y=470)
-part_area_entry = ctk.CTkEntry(New_calculation_frame, fg_color=("#FFFFFF"), bg_color=("#CDCCCC"), height=30, width=177, corner_radius=20, border_color="#0377AC", border_width=2,
+part_area_entry = ctk.CTkEntry(New_calculation_frame, fg_color=("#FFFFFF"), bg_color=("#CDCCCC"), text_color=("#0377AC"), height=30, width=177, corner_radius=20, border_color="#0377AC", border_width=2,
                                     placeholder_text="cm^2", placeholder_text_color=("#7A7A7A"))
 part_area_entry.place(x=480, y=470)
 
@@ -2154,11 +2117,11 @@ part_area_entry.place(x=480, y=470)
 label8 = ctk.CTkLabel(New_calculation_frame, text="Enter support material:", font=("Arial", 18), text_color=("#0377AC"), bg_color=("#CDCCCC"),
                     anchor="e", width=180)
 label8.place(x=270, y=520)
-support_material_entry = ctk.CTkEntry(New_calculation_frame, fg_color=("#FFFFFF"), bg_color=("#CDCCCC"), height=30, width=177, corner_radius=20, border_color="#0377AC", border_width=2,
+support_material_entry = ctk.CTkEntry(New_calculation_frame, fg_color=("#FFFFFF"), bg_color=("#CDCCCC"), text_color=("#0377AC"), height=30, width=177, corner_radius=20, border_color="#0377AC", border_width=2,
                                     placeholder_text="percent of mass (ex.0.15)", placeholder_text_color=("#7A7A7A"))
 support_material_entry.place(x=480, y=520)
 
-# Reset button, MISSING A COMMAND
+# Reset button
 reset_button = ctk.CTkButton(New_calculation_frame,
                         text="Reset",
                         font=("Arial", 24),
@@ -2183,20 +2146,6 @@ submit_button = ctk.CTkButton(New_calculation_frame, command=lambda: calculate(n
 submit_button.place(x=500, y=620)
 
 ###### HISTORY PAGE
-def fetch_calculations():
-    with closing(get_db_connection()) as con:
-        with closing(con.cursor()) as cur:
-            print("Fetching calculations...")  # Debug statement
-            cur.execute("""SELECT c.calculation_id, c.date, c.project_name, n.machine_name, m.material_name, c.average_cost
-                           FROM calculations c
-                           JOIN materials m ON c.material_used = m.material_id
-                           JOIN machines n ON c.machine_used = n.machine_id""")
-            calculations = cur.fetchall()
-            print(f"Fetched calculations: {calculations}")  # Debug statement
-    return calculations
-
-# Call the function to trigger the error and see the debug output
-fetch_calculations()
 
 master = ctk.CTkFrame(Calculation_history_frame,
                     fg_color=("#CDCCCC"),
