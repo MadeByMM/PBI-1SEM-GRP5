@@ -1398,7 +1398,7 @@ def delete_material():
 # MAIN WINDOW
 root = tk.Tk()
 root.title("Nexttech Calculator")
-root.iconbitmap("next.ico")
+root.iconbitmap("GUI/next.ico")
 root.geometry("1280x720")  # Set initial app window size
 root.config(background ="#333333" )
 root.grid_rowconfigure(0, weight=1)  # Allow row 0 to expand
@@ -1418,8 +1418,9 @@ for i in range(5):
     background_frame.grid_columnconfigure(i, weight=1)
 
 # Nexttech Logo on login screen
-image = Image.open("Nexttech logo.png")  
-image = image.resize((108, 108), Image.Resampling.LANCZOS)  # Resize image if needed
+image = Image.open("GUI/Nexttech logo.png")
+
+image = image.resize((108, 108), Image.Resampling.LANCZOS)
 tk_image = ImageTk.PhotoImage(image)
 
 # Add the image to the frame using a Label
@@ -1434,9 +1435,9 @@ canvas.grid(row=3, column=2, columnspan=1, rowspan=1, padx=0, pady=0)
 create_rounded_rectangle(canvas, 0, 0, 250, 150, radius=25, fill="#D9D9D9")
 
 # Create an image button
-image_path = "button login.png"  # Replace with your image file path
+image_path = "GUI/button login.png"
 image = Image.open(image_path)
-image = image.resize((75, 40), Image.Resampling.LANCZOS)  # Resize to a button-friendly size
+image = image.resize((75, 40), Image.Resampling.LANCZOS)  
 photo_image = ImageTk.PhotoImage(image)
 
 # Login frame

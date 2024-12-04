@@ -10,10 +10,12 @@ from contextlib import closing
 from PIL import Image, ImageTk
 import re
 import customtkinter as ctk
+ctk.set_default_color_theme("GUI/Nexttheme.json") #Color theme 
 from functools import partial
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
+######## DATABASE CODE BACKEND ########
 def resource_path(relative_path):
     """ Get the absolute path to the resource, works for dev and for PyInstaller """
     try:
@@ -65,8 +67,8 @@ def fetch_calculations():
 # Call the function to trigger the error and see the debug output
 fetch_calculations()
 
-##### CALCULATIONS FUNCTIONS BACKEND
 
+######## CALCULATIONS FUNCTIONS BACKEND ########
 total_cost = 0
 average_cost_per_part = 0
 
@@ -153,20 +155,20 @@ def machine_cost(parts_produced,numbers_of_builds,total_machine_cost, infrastruc
 
 def display_results(total_cost, average_cost_per_part, cost_breakdown):
             # Clear the frame2 content
-            for widget in frame2.winfo_children():
+            for widget in CalculatorFrame.winfo_children():
                 widget.destroy()
 
             # Configure grid weights
-            frame2.grid_rowconfigure(0, weight=1)
-            frame2.grid_columnconfigure(0, weight=1)
+            CalculatorFrame.grid_rowconfigure(0, weight=1)
+            CalculatorFrame.grid_columnconfigure(0, weight=1)
 
-            tk.Label(frame2, text=f"Total Cost: {total_cost}").grid(row=0, column=0, sticky='w')
-            tk.Label(frame2, text=f"Average Cost per Part: {average_cost_per_part}").grid(row=1, column=0, sticky='w')
-            tk.Label(frame2, text="Cost Breakdown:").grid(row=2, column=0, sticky='w')
+            tk.Label(CalculatorFrame, text=f"Total Cost: {total_cost}").grid(row=0, column=0, sticky='w')
+            tk.Label(CalculatorFrame, text=f"Average Cost per Part: {average_cost_per_part}").grid(row=1, column=0, sticky='w')
+            tk.Label(CalculatorFrame, text="Cost Breakdown:").grid(row=2, column=0, sticky='w')
 
             row = 3
             for key, value in cost_breakdown.items():
-                tk.Label(frame2, text=f"{key}: {value}").grid(row=row, column=0, sticky='w')
+                tk.Label(CalculatorFrame, text=f"{key}: {value}").grid(row=row, column=0, sticky='w')
                 row += 1
 
             # Create a graph of cost per part up to 100
@@ -179,7 +181,7 @@ def display_results(total_cost, average_cost_per_part, cost_breakdown):
             ax.set_ylabel('Cost per Part')
             ax.set_title('Cost per Part up to 100')
 
-            canvas = FigureCanvasTkAgg(fig, master=frame2)
+            canvas = FigureCanvasTkAgg(fig, master=CalculatorFrame)
             canvas.draw()
             canvas.get_tk_widget().grid(row=row, column=0, sticky='w')
 
@@ -319,9 +321,6 @@ def save_calculation(name_pro, machine_id_var, material_id_var, parts_produced_e
                 con.commit()
 
                 messagebox.showinfo("Success", "Calculation saved successfully!")
-
-
-
 
 ##### LOGIN / ADMIN 
 
@@ -1246,8 +1245,8 @@ def delete_process():
             messagebox.showerror("Error", "Process not found.")
     else:
         messagebox.showerror("Error", "No process selected to delete.")
+        
 ######## MATERIALS########
-
 # Function to connect to the database and fetch all materials data
 def fetch_materials():
     with closing(get_db_connection()) as con:
@@ -1433,859 +1432,420 @@ def delete_material():
     else:
         messagebox.showerror("Error", "No material selected to delete.")
 
-# MAIN WINDOW
-root = tk.Tk()
-icon_path = resource_path('next.ico')
-root.title("Nexttech Calculator")
-root.iconbitmap(icon_path)
-root.geometry("1280x720")  # Set initial app window size
-root.config(background ="#333333" )
-root.grid_rowconfigure(0, weight=1)  # Allow row 0 to expand
-root.grid_columnconfigure(0, weight=1)  # Allow column 0 to expand
-# PARENT FRAMES
 
-# Parent frame of login_frame
-background_frame = tk.Frame(root, background="#333333")
-background_frame.grid(row=0, column=0, sticky="nsew")
-# Footer text on login page
-footer_label = tk.Label(background_frame, text="IBA Nexttech © 2024 - PBI-1SEM-GRP5", bg="#333333", fg="white", font=("Inter", 8))
-footer_label.grid(row=9, column=2, columnspan=1, pady=(10, 5), sticky="s")
-
-for i in range(10):
-    background_frame.grid_rowconfigure(i, weight=1) 
-for i in range(5):
-    background_frame.grid_columnconfigure(i, weight=1)
-
-# Nexttech Logo on login screen
-image_path = resource_path('Nexttech logo.png')
-image = Image.open(image_path)  
-image = image.resize((108, 108), Image.Resampling.LANCZOS)  # Resize image if needed
-tk_image = ImageTk.PhotoImage(image)
-
-# Add the image to the frame using a Label
-image_label = tk.Label(background_frame, image=tk_image, bg="#333333")
-image_label.grid(row=2, column=2, padx=0, pady=(0, 20))
-
-# Create a canvas with a rounded rectangle to simulate rounded corners
-canvas = tk.Canvas(background_frame, width=250, height=150, bg="#333333", bd=0, highlightthickness=0)
-canvas.grid(row=3, column=2, columnspan=1, rowspan=1, padx=0, pady=0)
-
-# Draw a rounded rectangle on the canvas for the login frame
-create_rounded_rectangle(canvas, 0, 0, 250, 150, radius=25, fill="#D9D9D9")
-
-# Create an image button
-button_path = resource_path("button login.png")
-image = Image.open(button_path)
-image = image.resize((75, 40), Image.Resampling.LANCZOS)  # Resize to a button-friendly size
-photo_image = ImageTk.PhotoImage(image)
-
-# Login frame
-login_frame = tk.Frame(background_frame, background="#D9D9D9")
-login_frame.grid(row=3, column=2, columnspan=1, rowspan=1, padx=0, pady=0)
-login_frame.bind("<Return>", lambda event: login())
-
-# Round image button
-image_button = tk.Button(login_frame, image=photo_image, command=on_button_click,bg="#D9D9D9", bd=0, activebackground="#D9D9D9")  # Remove border for a clean look
-image_button.grid(row=2, columnspan=2, sticky="e", padx=25)
-
-tk.Label(login_frame, text="Username:",bg="#D9D9D9",font=("Inter", 15)).grid(row=0, column=0, padx=5, pady=5)
-username_entry_login = tk.Entry(login_frame, width=10, font=("Inter", 14))
-username_entry_login.grid(row=0, column=1, padx=5, pady=5)
-
-tk.Label(login_frame, text="Password:",bg="#D9D9D9",font=("Inter", 15)).grid(row=1, column=0, padx=5, pady=5)
-password_entry_login = tk.Entry(login_frame, show='*', width=10, font=("Inter", 14))
-password_entry_login.grid(row=1, column=1, padx=5, pady=5)
-
-# button down below is deaktivatet and replaced with image button
-
-#login_button = tk.Button(login_frame, text="Login",bg="#ffffff",font=("Inter", 15),relief="flat", command=login, width=5)
-#login_button.grid(row=2, columnspan=2, sticky="e", padx=25)
-
-# Frame for "user" login
-user_mainpage_frame = tk.Frame(root)
-
-ctk.CTkButton(
-    user_mainpage_frame,
-    text="New Calculation", 
-    command=lambda: show_frame(New_calculation_frame), 
-    corner_radius=10, 
-    fg_color="#D9D9D9", 
-    text_color="#000000",
-    font=("Inter", 15),
-    width=180, 
-    height=50
-).grid(row=1, column=0, padx=5, sticky="nw")
-
-ctk.CTkButton(
-    user_mainpage_frame,
-    text="Calculation History", 
-    command=lambda: show_frame(Calculation_history_frame), 
-    corner_radius=10, 
-    fg_color="#D9D9D9", 
-    text_color="#000000",
-    font=("Inter", 15),
-    width=180, 
-    height=50
-).grid(row=2, column=0, padx=5, sticky="nw")
-
-ctk.CTkButton(
-    user_mainpage_frame,
-    text="Log out", 
-    command=logout, 
-    corner_radius=10, 
-    fg_color="#D9D9D9", 
-    text_color="#000000",
-    font=("Inter", 15),
-    width=180, 
-    height=50
-).grid(row=10, column=0, padx=5, sticky="nw")
-
-for i in range(20):  
-    user_mainpage_frame.grid_rowconfigure(i, weight=1)
-for i in range(12):
-    user_mainpage_frame.grid_columnconfigure(0, weight=1)
-
-# Frame for "admin" login
-admin_mainpage_frame = tk.Frame(root)
-
-ctk.CTkButton(
-    admin_mainpage_frame, 
-    text="New Calculation", 
-    command=lambda: show_frame(New_calculation_frame), 
-    corner_radius=10, 
-    fg_color="#D9D9D9", 
-    text_color="#000000",
-    font=("Inter", 15),
-    width=180, 
-    height=50
-).grid(row=1, column=0, padx=5, sticky="nw")
-
-ctk.CTkButton(
-    admin_mainpage_frame, 
-    text="Calculation History", 
-    command=lambda: show_frame(Calculation_history_frame), 
-    corner_radius=10, 
-    fg_color="#D9D9D9", 
-    text_color="#000000",
-    font=("Inter", 15),
-    width=180, 
-    height=50
-).grid(row=2, column=0, padx=5, sticky="nw")
-
-ctk.CTkButton(
-    admin_mainpage_frame, 
-    text="Price Settings", 
-    command=lambda: show_frame(price_settings_frame), 
-    corner_radius=10, 
-    fg_color="#D9D9D9", 
-    text_color="#000000",
-    font=("Inter", 15),
-    width=180, 
-    height=50
-).grid(row=3, column=0, padx=5, sticky="nw")
-
-ctk.CTkButton(
-    admin_mainpage_frame, 
-    text="User Management", 
-    command=show_user_management_frame, 
-    corner_radius=10, 
-    fg_color="#D9D9D9", 
-    text_color="#000000",
-    font=("Inter", 15),
-    width=180, 
-    height=50
-).grid(row=4, column=0, padx=5, sticky="nw")
-
-ctk.CTkButton(
-    admin_mainpage_frame, 
-    text="Log out", 
-    command=logout, 
-    corner_radius=10, 
-    fg_color="#D9D9D9", 
-    text_color="#000000",
-    font=("Inter", 15),
-    width=180, 
-    height=50
-).grid(row=10, column=0, padx=5, sticky="nw")
-
-for i in range(20):  
-    admin_mainpage_frame.grid_rowconfigure(i, weight=1)
-for i in range(12):
-    admin_mainpage_frame.grid_columnconfigure(i, weight=1)
-
-# New calculation frame
-New_calculation_frame = tk.Frame(root)
-
-ctk.CTkButton(
-    New_calculation_frame, 
-    text="Back", 
-    command=go_back, 
-    corner_radius=10, 
-    fg_color="#D9D9D9", 
-    text_color="#000000",
-    font=("Inter", 15),
-    width=180, 
-    height=50
-).place(x=25, y=25)
-
-for i in range(20):  
-    New_calculation_frame.grid_rowconfigure(i, weight=1)
-for i in range(12):
-    New_calculation_frame.grid_columnconfigure(i, weight=1)
-
-# Calculation History frame
-Calculation_history_frame = tk.Frame(root)
-
-ctk.CTkButton(
-    Calculation_history_frame, 
-    text="Back", 
-    command=go_back, 
-    corner_radius=10, 
-    fg_color="#D9D9D9", 
-    text_color="#000000",
-    font=("Inter", 15),
-    width=180, 
-    height=50
-).grid(row=10, column=0, padx=5, sticky="nw")
-
-for i in range(20):  
-    Calculation_history_frame.grid_rowconfigure(i, weight=1)
-for i in range(12):
-    Calculation_history_frame.grid_columnconfigure(i, weight=1)
-
-# Frame for user management
-User_Management_frame = tk.Frame(root)
-#gray frame 
-add_user_frame = tk.Frame(User_Management_frame, width=510, height=650, bg="#D9D9D9", bd=0, relief="solid", highlightbackground="#00A3EE", highlightthickness=2)
-add_user_frame.grid(row=1, column=1, rowspan=28, columnspan=8, padx=10, pady=10, sticky="nsew")
-
-tk.Label(add_user_frame, text="New user",font=("Inter", 18), fg="#00A3EE",  bg="#D9D9D9").grid(row=0, column=2, sticky="w", padx=(10, 5), pady=20)
-
-# Username entry
-username_entry_user_management = ctk.CTkEntry(add_user_frame, font=("Inter", 12), fg_color="#FFFFFF")  # Set default placeholder color
-username_entry_user_management.grid(row=2, column=2, sticky="w", pady=5)
-username_entry_user_management.insert(0, "Enter username")  # Placeholder text
-
-# Bind events for username field
-username_entry_user_management.bind("<FocusIn>", lambda event: on_focus_in(username_entry_user_management, "Enter username"))
-username_entry_user_management.bind("<FocusOut>", lambda event: on_focus_out(username_entry_user_management, "Enter username"))
-
-# Password entry
-password_entry_user_management = ctk.CTkEntry(add_user_frame, font=("Inter", 12), fg_color="#FFFFFF")  
-password_entry_user_management.grid(row=4, column=2, sticky="w", pady=5)
-password_entry_user_management.insert(0, "Enter password")  
-
-# Bind events for password field
-password_entry_user_management.bind("<FocusIn>", lambda event: on_focus_in(password_entry_user_management, "Enter password"))
-password_entry_user_management.bind("<FocusOut>", lambda event: on_focus_out(password_entry_user_management, "Enter password"))
-
-# Role entry
-role_options = ["Admin", "User"]  # Define available roles
-role_entry = ttk.Combobox(add_user_frame, values=role_options,font=("Inter", 12), state="readonly")
-role_entry.grid(row=6, column=2, sticky="w",pady=5)
-role_entry.set("Choose Role")
-
-tk.Label(
-    User_Management_frame, 
-    text="Registered Users", 
-    font=("Inter", 20), 
-    fg="#D9D9D9",  # Font color
-    bg="#333333"   # Label background color
-).grid(row=1, column=10, columnspan=3, sticky="nsew")
-
-# Search
-placeholder_text = "Search in users"
-search_entry = ctk.CTkEntry(User_Management_frame, font=("Inter", 14), fg_color="#FFFFFF")
-search_entry.grid(row=2, column=10, pady=5, sticky="nsew")
-search_entry.insert(0, placeholder_text)
-
-# Bind focus in and out events for placeholder functionality
-search_entry.bind("<FocusIn>", lambda event: on_focus_in(search_entry, placeholder_text))
-search_entry.bind("<FocusOut>", lambda event: on_focus_out(search_entry, placeholder_text))
-
-style = ttk.Style()
-style.configure("Custom.Treeview", font=("Inter", 12))  # Set font and size
-style.configure("Custom.Treeview.Heading", font=("Inter", 14, "bold"))  # Header font
-
-# Customizing Treeview
-style.map("Custom.Treeview", background=[("selected", "#D9D9D9")])  # Row selection color
-style.configure("Custom.Treeview", background="#D9D9D9", fieldbackground="#D9D9D9")  # Default row and cell background
-
-# Customizing Treeview Header
-style.configure("Custom.Treeview.Heading", foreground="#000000", font=("Inter", 14))  # Header background color and text color
-style.map("Custom.Treeview.Heading", background=[("active", "#000000")])  # Active header color
-
-# Treeview with scrollbar
-user_tree = ttk.Treeview(User_Management_frame, style="Custom.Treeview", columns=("ID", "Username", "Role"), show="headings")
-user_tree.heading("ID", text="ID")
-user_tree.heading("Username", text="Username")
-user_tree.heading("Role", text="Role")
-
-# Set column widths and alignment for Treeview
-user_tree.column("ID", width=50, anchor="center")
-user_tree.column("Username", width=200, anchor="center")
-user_tree.column("Role", width=100, anchor="center")
-user_tree.grid(row=3, column=10, rowspan=6, columnspan=3, sticky="nsew")  # Placing Treeview in upper right
-
-search_entry.bind("<KeyRelease>", lambda event: search_treeview(search_entry.get()))
-
-# Add scrollbar for Treeview
-user_scrollbar = ttk.Scrollbar(User_Management_frame, orient="vertical", command=user_tree.yview)
-user_tree.configure(yscroll=user_scrollbar.set)
-
-# Place scrollbar in the grid, ensuring it stays within the height of the Treeview
-user_scrollbar.grid(row=3, column=13, rowspan=6, sticky="nsw")  # The scrollbar aligns with Treeview
-style.configure("TScrollbar", gripcount=0, background="#00A3EE", troughcolor="#D9D9D9", bordercolor="#00A3EE")
-
-# Ensure the frame can stretch and the Treeview + Scrollbar can fill the entire area
-User_Management_frame.grid_rowconfigure(1, weight=1)  # Ensures the first row expands vertically
-User_Management_frame.grid_columnconfigure(10, weight=1)  # Ensures column 10 expands horizontally (for Treeview)
-User_Management_frame.grid_columnconfigure(13, weight=0)  # Scrollbar column doesn't need to expand horizontally
-
-# Optionally, ensure the Treeview expands vertically across the grid row
-User_Management_frame.grid_rowconfigure(1, weight=1) 
-
-# Buttons
-ctk.CTkButton(
-    add_user_frame, 
-    text="Create new user", 
-    command=create_acc, 
-    corner_radius=10, 
-    fg_color="#ffffff", 
-    text_color="#000000",
-    font=("Inter", 15),
-    width=90, 
-    height=30
-).grid(row=7, column=2, padx=5,pady=10,sticky="e")
-
-ctk.CTkButton(
-    User_Management_frame, 
-    text="Refresh Users", 
-    command=display_users, 
-    corner_radius=10, 
-    fg_color="#D9D9D9", 
-    text_color="#000000",
-    font=("Inter", 15),
-    width=90, 
-    height=30
-).grid(row=10, column=10, padx=5, sticky="nw")
-
-ctk.CTkButton(
-    User_Management_frame, 
-    text="Delete User", 
-    command=delete_acc, 
-    corner_radius=10, 
-    fg_color="#D9D9D9", 
-    text_color="#000000",
-    font=("Inter", 15),
-    width=90, 
-    height=30
-).grid(row=10, column=12, padx=5, sticky="nw")
-
-ctk.CTkButton(
-    User_Management_frame, 
-    text="Edit User", 
-    command=edit_acc, 
-    corner_radius=10, 
-    fg_color="#D9D9D9", 
-    text_color="#000000",
-    font=("Inter", 15),
-    width=90, 
-    height=30
-).grid(row=10, column=11, padx=5, sticky="nw")
-
-ctk.CTkButton(
-    User_Management_frame, 
-    text="Back", 
-    command=go_back, 
-    corner_radius=10, 
-    fg_color="#D9D9D9", 
-    text_color="#000000",
-    font=("Inter", 15),
-    width=180, 
-    height=50
-).grid(row=1, column=0, padx=5, sticky="nw")
-
- # adjust row/column for user_management_frame
-for i in range(30):  
-    User_Management_frame.grid_rowconfigure(i, weight=1)
-for i in range(15):
-    User_Management_frame.grid_columnconfigure(i, weight=1)
-
-for i in range(5):
-    add_user_frame.grid_columnconfigure(i, weight=1)
-
-price_settings_frame = tk.Frame(root)
-for i in range(30):  
-    price_settings_frame.grid_rowconfigure(i, weight=1)
-for i in range(15):
-    price_settings_frame.grid_columnconfigure(i, weight=1)
-
-ctk.CTkButton(
-    price_settings_frame, 
-    text="Back", 
-    command=go_back, 
-    corner_radius=10, 
-    fg_color="#D9D9D9", 
-    text_color="#000000",
-    font=("Inter", 15),
-    width=180, 
-    height=50
-).grid(row=10, column=0, padx=5, sticky="nw")
-
-frames = [
-    background_frame, user_mainpage_frame, admin_mainpage_frame,
-    New_calculation_frame, Calculation_history_frame,
-    User_Management_frame, price_settings_frame
-    ]
-# POSITION PARENT FRAMES IN ROOT, ALLOW THEM EXPAND WITH ROOT, BG COLOR
-for frame in frames:
-    frame.grid(row=0, column=0, sticky="nsew")  # Grid all frames to the same position
-    frame.grid_rowconfigure(0, weight=1)  # Allow frames to expand vertically
-    frame.grid_columnconfigure(0, weight=1)  # Allow frames to expand horizontally
-    frame.config(background="#333333") 
-
-price_change_frame = tk.Frame(price_settings_frame, width=800, height=650, bg="#D9D9D9", bd=0, relief="solid",highlightcolor="#00A3EE", highlightbackground="#00A3EE", highlightthickness=2)
-price_change_frame.grid(row=1, column=1, rowspan=28, columnspan=2, padx=10, pady=10, sticky="nsew")
-price_change_frame.grid_propagate(False)
-
-# borders for dividing price_change_frame in 4
-price_label_row = tk.Label(price_change_frame, text="", bg="#00A3EE", )
-price_label_row.grid(row=3, column=0, columnspan=15,sticky="ew")
-
-price_label_col = tk.Label(price_change_frame, text="", bg="#00A3EE", width=2)
-price_label_col.grid(row=0, column=4, rowspan=30, sticky="ns")
-
-for i in range(10):  
-    price_change_frame.grid_rowconfigure(i, weight=1)
-for i in range(15):
-    price_change_frame.grid_columnconfigure(i, weight=1)
-price_change_frame.grid_rowconfigure(4, weight=1, minsize=1)  
-
-### MACHINES GUI
-machines = fetch_machines()
-machine_names = [machine[1] for machine in machines]  
-
-# Combobox to select machine (placed in price_change_frame)
-combobox_machine = ttk.Combobox(price_change_frame, values=machine_names, state="readonly")
-combobox_machine.grid(row=0, column=0, padx=10, pady=10)
-combobox_machine.set("Select printer")
-combobox_machine.bind("<<ComboboxSelected>>", on_machine_selected)
-
-# Frame to hold the Treeview and scrollbar
-treeview_frame_machine = tk.Frame(price_change_frame)
-treeview_frame_machine.grid(row=2, column=0, columnspan=3, padx=10, pady=10, sticky="nsew")
-treeview_frame_machine.grid_rowconfigure(0, weight=1)
-treeview_frame_machine.grid_columnconfigure(0, weight=1)
-
-# machine treeview
-columns_machine = ["Attribute", "Value"]
-machine_tree = ttk.Treeview(treeview_frame_machine, columns=columns_machine, show="headings", height=6)
-machine_tree.heading("Attribute", text="Attribute")
-machine_tree.heading("Value", text="Value")
-machine_tree.grid(row=0, column=0, sticky="nsew")
-
-# Machine scrollbar
-machine_scrollbar = ttk.Scrollbar(treeview_frame_machine, orient="vertical", command=machine_tree.yview)
-machine_tree.configure(yscroll=machine_scrollbar.set)
-machine_scrollbar.grid(row=0, column=1, sticky="ns")
-
-# machine buttons
-create_button_machine = tk.Button(price_change_frame, text="Create Machine", command=create_new_machine)
-create_button_machine.grid(row=1, column=0, padx=10, pady=5, sticky="nsew")
-
-edit_button_machine = tk.Button(price_change_frame, text="Edit Machine", command=edit_machine)
-edit_button_machine.grid(row=1, column=1, padx=10, pady=5, sticky="nsew")
-
-delete_button_machine = tk.Button(price_change_frame, text="Delete Machine", command=delete_machine)
-delete_button_machine.grid(row=1, column=2, padx=10, pady=5, sticky="nsew")
-
-operations = fetch_operations()
-operation_names = [operation[0] for operation in operations]  
-
-
-###  OPERATIONS GUI
-
-# Combobox to select operation (placed in price_change_frame)
-combobox_operation = ttk.Combobox(price_change_frame, values=operation_names, state="readonly")
-combobox_operation.grid(row=0, column=5, padx=10, pady=10)
-combobox_operation.set("Select operation")
-combobox_operation.bind("<<ComboboxSelected>>", on_operation_selected)
-
-# Frame to hold the Treeview and scrollbar
-treeview_frame_operations = tk.Frame(price_change_frame)
-treeview_frame_operations.grid(row=2, column=5, columnspan=3, padx=10, pady=10, sticky="nsew")
-treeview_frame_operations.grid_rowconfigure(0, weight=1)
-treeview_frame_operations.grid_columnconfigure(0, weight=1)
-
-# operation treeview
-columns_operation = ["Attribute", "Value"]
-operation_tree = ttk.Treeview(treeview_frame_operations, columns=columns_operation, show="headings", height=6)
-operation_tree.heading("Attribute", text="Attribute")
-operation_tree.heading("Value", text="Value")
-operation_tree.grid(row=0, column=0, sticky="nsew")
-
-
-# Scrollbar for the Treeview
-scrollbar = ttk.Scrollbar(treeview_frame_operations, orient="vertical", command=operation_tree.yview)
-scrollbar.grid(row=0, column=1, sticky="ns")
-operation_tree.config(yscrollcommand=scrollbar.set)
-
-# Buttons
-create_button = tk.Button(price_change_frame, text="Create New Operation", command=create_new_operation)
-create_button.grid(row=1, column=5, padx=10, pady=5)
-
-edit_button = tk.Button(price_change_frame, text="Edit Operation", command=edit_operation)
-edit_button.grid(row=1, column=6, padx=10, pady=5)
-
-delete_button = tk.Button(price_change_frame, text="Delete Operation", command=delete_operation)
-delete_button.grid(row=1, column=7, padx=10, pady=5)
-
-##### PROCESSES USER INTERFACE
-processes = fetch_processes()
-process_names = [process[1] for process in processes]  
-
-# Combobox to select process (placed in price_change_frame)
-combobox_process = ttk.Combobox(price_change_frame, values=process_names, state="readonly")
-combobox_process.grid(row=4, column=0, padx=10, pady=10)
-combobox_process.set("Select process")
-combobox_process.bind("<<ComboboxSelected>>", on_process_selected)
-
-# Frame to hold the Treeview and scrollbar
-treeview_frame_process = tk.Frame(price_change_frame)
-treeview_frame_process.grid(row=6, column=0, columnspan=3, padx=10, pady=10, sticky="nsew")
-treeview_frame_process.grid_rowconfigure(0, weight=1)
-treeview_frame_process.grid_columnconfigure(0, weight=1)
-
-# Process treeview
-columns_process = ["Attribute", "Value"]
-process_tree = ttk.Treeview(treeview_frame_process, columns=columns_process, show="headings", height=6)
-process_tree.grid(row=0, column=0, sticky="nsew")
-
-# Adding headers
-for col in columns_process:
-    process_tree.heading(col, text=col)
-
-# Scrollbar for the Treeview
-scrollbar = ttk.Scrollbar(treeview_frame_process, orient="vertical", command=process_tree.yview)
-scrollbar.grid(row=0, column=1, sticky="ns")
-process_tree.config(yscrollcommand=scrollbar.set)
-
-# Buttons
-create_button = tk.Button(price_change_frame, text="Create New Process", command=create_new_process)
-create_button.grid(row=5, column=0, padx=10, pady=5)
-
-edit_button = tk.Button(price_change_frame, text="Edit Process", command=edit_process)
-edit_button.grid(row=5, column=1, padx=10, pady=5)
-
-delete_button = tk.Button(price_change_frame, text="Delete Process", command=delete_process)
-delete_button.grid(row=5, column=2, padx=10, pady=5)
-
-#### MATERIALS USER INTERFACE
-
-materials = fetch_materials()
-material_names = [material[1] for material in materials]  
-
-# Combobox to select material (placed in price_change_frame)
-combobox_material = ttk.Combobox(price_change_frame, values=material_names, state="readonly")
-combobox_material.grid(row=4, column=5, padx=10, pady=10)
-combobox_material.set("Select material")
-combobox_material.bind("<<ComboboxSelected>>", on_material_selected)
-
-# Frame to hold the Treeview and scrollbar
-treeview_frame_material = tk.Frame(price_change_frame)
-treeview_frame_material.grid(row=6, column=5, columnspan=3, padx=10, pady=10, sticky="nsew")
-treeview_frame_material.grid_rowconfigure(0, weight=1)
-treeview_frame_material.grid_columnconfigure(0, weight=1)
-
-# Material treeview
-columns_material = ["Attribute", "Value"]
-material_tree = ttk.Treeview(treeview_frame_material, columns=columns_material, show="headings", height=6)
-material_tree.grid(row=0, column=0, sticky="nsew")
-
-# Adding headers
-for col in columns_material:
-    material_tree.heading(col, text=col)
-
-# Scrollbar for the Treeview
-scrollbar = ttk.Scrollbar(treeview_frame_material, orient="vertical", command=material_tree.yview)
-scrollbar.grid(row=0, column=1, sticky="ns")
-material_tree.config(yscrollcommand=scrollbar.set)
-
-# Buttons
-create_button = tk.Button(price_change_frame, text="Create New Material", command=create_new_material)
-create_button.grid(row=5, column=5, padx=10, pady=5)
-
-edit_button = tk.Button(price_change_frame, text="Edit Material", command=edit_material)
-edit_button.grid(row=5, column=6, padx=10, pady=5)
-
-delete_button = tk.Button(price_change_frame, text="Delete Material", command=delete_material)
-delete_button.grid(row=5, column=7, padx=10, pady=5)
-
-#### CALCULATION PAGE
-
-# Fetch options for dropdown menus
-material_options = fetch_options("SELECT material_id, material_name FROM materials")
-
-# Add "Choose One" option
-material_options = {"Choose One": None, **material_options}
-
-# Initialize machine_options
-machine_options = {}
-
-#Frame around calculation
-frame2 = ctk.CTkFrame(New_calculation_frame,
-                    fg_color=("#CDCCCC"),
-                    bg_color=("#333333"),
-                    height=670,
-                    width=510)
-frame2.place(x=740, y=25)
-
-#Headline Calculation
-overskrift2 = ctk.CTkLabel(New_calculation_frame, text = "Calculation",
-                        font = ("Arial",32, "bold"),
-                        text_color=("#0377AC"),
-                        bg_color =("#CDCCCC"),width=300, justify=CENTER)
-overskrift2.place(x=840, y=35,)
-
-# Save button, MISSING A COMMAND
-save_button = ctk.CTkButton(New_calculation_frame, command=lambda: save_calculation(name_pro, machine_id_var, material_id_var, parts_produced_entry, numbers_of_builds_entry),
-                        text="Save calculation",
-                        font=("Arial", 24),
-                        text_color=("#FFFFFF"),
-                        fg_color=("#0377AC"),
-                        bg_color=("#CDCCCC"),
-                        height=40, width=300, anchor="center",
-                        hover_color="#034868",
-                        corner_radius=20)
-save_button.place(x=840, y=620)
-
-# Space for GUI Calculation 
-
-
-#Frame around calculator 
-frame1 = ctk.CTkFrame(New_calculation_frame,
-                    fg_color=("#CDCCCC"),
-                    bg_color=("#333333"),
-                    height=670,
-                    width=480)
-frame1.place(x=231, y=25)
-
-#Headline
-overskrift1 = ctk.CTkLabel(New_calculation_frame, text = "New calculation",
-                        font = ("Arial",32, "bold"),
-                        text_color=("#0377AC"),
-                        bg_color =("#CDCCCC"),width=300, justify=CENTER)
-overskrift1.place(x=321, y=35,)
-
-
-
-# Name project, MISSING A COMMAND
-name_pro = ctk.CTkEntry(New_calculation_frame,
-                        placeholder_text="Name your project",
+######## GUI MAIN APP CLASS ########
+class LoginFrame(ctk.CTkFrame):
+    def __init__(self, parent, background):
+        super().__init__(parent, bg_color=background)
+
+
+class App(ctk.CTk):
+    def __init__(self):
+        super().__init__()
+        self.geometry("1280x720")
+        self.configure(bg="#333333")
+        self.title("Nexttech Calculator")
+        self.grid_rowconfigure(0, weight=3)
+        self.grid_rowconfigure(1, weight=1)
+        self.grid_rowconfigure(2, weight=1)
+        self.grid_rowconfigure(3, weight=1)
+        self.grid_rowconfigure(4, weight=1)
+        self.grid_columnconfigure(0, weight=3)
+        self.grid_columnconfigure(1, weight=1)
+        self.grid_columnconfigure(2, weight=1)
+        self.grid_columnconfigure(3, weight=3)
+
+        # Logo on login screen
+        self.image = Image.open("GUI/Nexttech logo_dark.png")
+        self.image = self.image.resize((250, 250), Image.Resampling.LANCZOS)
+        self.tk_image = ImageTk.PhotoImage(self.image)
+        self.logo_label = ctk.CTkLabel(self, image=self.tk_image, text="",bg_color="#333333")
+        self.logo_label.grid(row=0, column=1, columnspan=2, padx=10, pady=10)
+
+        #Background frame
+        self.login_frame = ctk.CTkFrame(self, bg_color="#333333", width=160, height=90, corner_radius=20)
+        self.login_frame.grid(row=1, rowspan=3, column=1, columnspan=2, sticky="nsew")
+        self.login_frame.bind("<Return>", lambda event: self.login())
+                  
+        #Username
+        self.log_username = ctk.CTkLabel(self, text="Username:", bg_color="#CDCCCC",font=("Arial", 20))
+        self.log_username.grid(row=1, column=1, padx=1, pady=1, sticky="e")
+        self.username_entry_login = ctk.CTkEntry(self, bg_color="#CDCCCC", font=("Arial", 20),width=150)
+        self.username_entry_login.grid(row=1, column=2, padx=1, pady=1, sticky="w")
+        
+        #Password
+        self.log_password = ctk.CTkLabel(self, text="Password:", bg_color="#CDCCCC",font=("Arial", 20))
+        self.log_password.grid(row=2, column=1, padx=1, pady=1, sticky="e")
+        self.password_entry_login = ctk.CTkEntry(self, bg_color="#CDCCCC", font=("Arial", 20), show="*",width=150)
+        self.password_entry_login.grid(row=2, column=2, padx=1, pady=1, sticky="w")
+        
+        # Login Button
+        self.btn_login = ctk.CTkButton(self, text="Login",command=on_button_click,
                         font=("Arial", 20),
-                        text_color=("#0377AC"),
-                        fg_color=("#FFFFFF"), bg_color=("#CDCCCC"),
-                        height=35, width=300,
-                        corner_radius=20, border_color="#0377AC", border_width=2)
-name_pro.place(x=321, y=85)
+                        text_color="#000000", fg_color="#FFFFFF",
+                        height=50, width=120, corner_radius=20,bg_color="#CDCCCC")
+        self.btn_login.grid(row=3, column=1, columnspan=2, sticky="n", padx=20, pady=20)
+
+        
+        # Footer text on login page
+        self.footer_label = tk.Label(self, text="IBA Nexttech © 2024 - PBI-1SEM-GRP5", bg="#333333", fg="white", font=("Inter", 8))
+        self.footer_label.grid(row=4, column=1, columnspan=2, sticky="n", padx=20, pady=20)      
+        
 
 
-#Pick Machine; dropdown menus
-label4 = ctk.CTkLabel(New_calculation_frame, text="Pick machine:", font=("Arial", 18), text_color=("#0377AC"), bg_color=("#CDCCCC"),
-                    anchor="e", width=180)
-label4.place(x=270, y=320)
 
-machine_id_var = StringVar(root)
-machine_id_var.set("Choose One")  # default value
-machine_id_menu = OptionMenu(New_calculation_frame, machine_id_var, "Choose One")
-machine_id_menu.place(x=480, y=320)
+######## GUI MENU CLASS ######## 
+class MenuFrame(ctk.CTkFrame):
+    def __init__(self, parent):
+        super().__init__(parent, fg_color=("#333333"))
+        self.grid_rowconfigure(5, weight=1)
+        
+        #New Calculation
+        self.menu_btn_calculate = ctk.CTkButton(MenuFrame, text="New calculation", command=lambda: self.switch_to_frame("CalculatorFrame"), font=("Arial", 20),
+                                              text_color="#000000", fg_color="#D9D9D9",
+                                              height=50, width=180, corner_radius=20)
+        self.menu_btn_calculate.grid(row=0, column=0, padx=10, pady=10)
+        
+        #Calculation History
+        self.menu_btn_history = ctk.CTkButton(MenuFrame, text="Calculation History", command=lambda: self.switch_to_frame("HistoryFrame"), font=("Arial", 20),
+                                              text_color="#000000", fg_color="#D9D9D9",
+                                              height=50, width=180, corner_radius=20)
+        self.menu_btn_history.grid(row=1, column=0, padx=10, pady=10)
+        
+        #Price settings
+        self.menu_btn_price_settings = ctk.CTkButton(MenuFrame, text="Price Settings", command=lambda: self.switch_to_frame("PriceFrame"), font=("Arial", 20),
+                                              text_color="#000000", fg_color="#D9D9D9",
+                                              height=50, width=180, corner_radius=20)
+        self.menu_btn_price_settings.grid(row=2, column=0, padx=10, pady=10)   
 
-# Pick Materials; dropdown menus
-label3 = ctk.CTkLabel(New_calculation_frame, text="Pick material:", font=("Arial", 18), text_color=("#0377AC"), bg_color=("#CDCCCC"),
-                    anchor="e", width=180)
-label3.place(x=270, y=270)
+        #User Management
+        self.menu_btn_user_managment = ctk.CTkButton(MenuFrame, text="User Managment", command=lambda: self.switch_to_frame("ManagmentFrame"), font=("Arial", 20),
+                                              text_color="#000000", fg_color="#D9D9D9",
+                                              height=50, width=180, corner_radius=20)
+        self.menu_btn_user_managment.grid(row=4, column=0, padx=10, pady=10)   
 
-material_id_var = StringVar(New_calculation_frame)
-material_id_var.set("Choose One")  # default value
-material_id_var.trace_add('write', partial(update_machine_options, machine_id_var, material_id_var, machine_id_menu, material_options))
-material_id_menu = OptionMenu(New_calculation_frame, material_id_var, *material_options.keys())
-material_id_menu.place(x=480, y=270)
+        #Logout
+        self.menu_btn_calculate = ctk.CTkButton(MenuFrame, text="Log out", command=logout, font=("Arial", 20),
+                                              text_color="#000000", fg_color="#D9D9D9",
+                                              height=50, width=180, corner_radius=20)
+        self.menu_btn_calculate.grid(row=6, column=0, padx=10, pady=10) 
 
-# Enter parts produced
-label1 = ctk.CTkLabel(New_calculation_frame, text="Enter parts produced:", font=("Arial", 18), text_color=("#0377AC"), bg_color=("#CDCCCC"),
-                    anchor="e", width=180)
-label1.place(x=270, y=170)
-parts_produced_entry = ctk.CTkEntry(New_calculation_frame, fg_color=("#FFFFFF"), bg_color=("#CDCCCC"), height=30, width=177, corner_radius=20, border_color="#0377AC", border_width=2)
-parts_produced_entry.place(x=480, y=170)
 
-# Enter number of builds
-label2 = ctk.CTkLabel(New_calculation_frame, text="Enter number of builds:", font=("Arial", 18), text_color=("#0377AC"), bg_color=("#CDCCCC"),
-                    anchor="e", width=180)
-label2.place(x=270, y=220)
-numbers_of_builds_entry = ctk.CTkEntry(New_calculation_frame, fg_color=("#FFFFFF"), bg_color=("#CDCCCC"), height=30, width=177, corner_radius=20, border_color="#0377AC", border_width=2)
-numbers_of_builds_entry.place(x=480, y=220)
+######## GUI CALCULATION CLASS ######## 
+class CalculatorFrame(ctk.CTkFrame):
+    def __init__(self, parent):
+        super().__init__(parent, fg_color="#CDCCCC")
+        self.title("Calculator")
+        self.grid_rowconfigure(4, weight=1)
+        self.grid_columnconfigure(1, weight=1)
+        self.grid_columnconfigure(2, weight=1)
+        
+        # Menu Frame
+        self.menu_frame = MenuFrame(self)
+        self.menu_frame.grid(row=0, column=0, padx=20, pady=20, sticky="ns")
+               
+        # Fetch options for dropdown menus
+        material_options = fetch_options("SELECT material_id, material_name FROM materials")
+        
+        # Add "Choose One" option
+        material_options = {"Choose One": None, **material_options}
+        
+        # Initialize machine_options
+        machine_options = {}
+        
+        
+        # Calculator frame
+        self.calculate_frame = CalculatorFrame(self)
+        self.calculate_frame.grid(row=0, column=1, columnspan=2, padx=20, pady=20, sticky="nsew")    
+        
+        #Headline Calculation
+        self.header_Calculator = ctk.CTkLabel(CalculatorFrame, text="Calculator", font=("Arial", 24))
+        self.header_Calculator.grid(row=0, column=1, columnspan=2, sticky="ew", padx=20, pady=20)
+        
+        #Name project
+        self.name_pro = ctk.CTkEntry(CalculatorFrame, placeholder_text="Name your project", font=("Arial", 14),height=35, width=300,)
+        self.name_pro.grid(row=1, column=1, columnspan=2, sticky="ew", padx=20, pady=20)
+        
+        # Parts produced 
+        self.label1 = ctk.CTkLabel(CalculatorFrame, text="Enter parts produced:", bg_color=("#CDCCCC"))
+        self.label1.grid(row=2, column=1, padx=10, pady=10, sticky="w")
+        self.parts_produced_entry = ctk.CTkEntry(self, font=("Arial", 14))
+        self.parts_produced_entry.grid(row=2, column=2, padx=10, pady=10, sticky="w")
 
-# Enter part mass in kg 
-label5 = ctk.CTkLabel(New_calculation_frame, text="Enter part mass in kg:", font=("Arial", 18), text_color=("#0377AC"), bg_color=("#CDCCCC"),
-                    anchor="e", width=180)
-label5.place(x=270, y=370)
-part_mass_entry = ctk.CTkEntry(New_calculation_frame, fg_color=("#FFFFFF"), bg_color=("#CDCCCC"), height=30, width=177, corner_radius=20, border_color="#0377AC", border_width=2,
-                             placeholder_text="Kg.", placeholder_text_color=("#7A7A7A"))
-part_mass_entry.place(x=480, y=370)
+        # Enter number of builds
+        self.label2 = ctk.CTkLabel(CalculatorFrame, text="Enter number of builds:", bg_color=("#CDCCCC"))
+        self.label2.grid(row=3, column=1, padx=10, pady=10, sticky="w")
+        self.numbers_of_builds_entry = ctk.CTkEntry(self, font=("Arial", 14))
+        self.numbers_of_builds_entry.grid(row=3, column=2, padx=10, pady=10, sticky="w")
+        
+        # Pick Materials; dropdown menus
+        self.label3 = ctk.CTkLabel(CalculatorFrame, text="Pick material:", bg_color=("#CDCCCC"))
+        self.label3.grid(row=4, column=1, padx=10, pady=10, sticky="w")
+        self.material_id_var = StringVar(CalculatorFrame)
+        self.material_id_var.set("Choose One")  # default value
+        self.material_id_var.trace_add('write', partial(update_machine_options, machine_id_var, material_id_var, machine_id_menu, material_options))
+        self.material_id_menu = OptionMenu(CalculatorFrame, material_id_var, *material_options.keys())
+        self.material_id_menu.grid(row=4, column=2, padx=10, pady=10, sticky="w")
+        
+        #Pick Machine; dropdown menus
+        self.label4 = ctk.CTkLabel(CalculatorFrame, text="Pick machine:", bg_color=("#CDCCCC"))
+        self.label4.grid(row=5, column=1, padx=10, pady=10, sticky="w")  
+        self.machine_id_var = StringVar(CalculatorFrame)
+        self.machine_id_var.set("Choose One")  # default value
+        self.machine_id_menu = OptionMenu(CalculatorFrame, machine_id_var, "Choose One")
+        self.machine_id_menu.grid(row=5, column=2, padx=10, pady=10, sticky="w")
+        
+        # Enter part mass in kg 
+        self.label5 = ctk.CTkLabel(CalculatorFrame, text="Enter part mass in kg:", bg_color=("#CDCCCC"))
+        self.label5.grid(row=6, column=1, padx=10, pady=10, sticky="w")
+        self.part_mass_entry = ctk.CTkEntry(CalculatorFrame, bg_color=("#CDCCCC"), placeholder_text="Kg.", placeholder_text_color=("#7A7A7A"))
+        self.part_mass_entry.grid(row=6, column=2, padx=10, pady=10, sticky="w")
+        
+        # Enter part height in cm
+        self.label6 = ctk.CTkLabel(CalculatorFrame, text="Enter part height in cm:", bg_color=("#CDCCCC"))
+        self.label6.grid(row=7, column=1, padx=10, pady=10, sticky="w")
+        self.part_height_entry = ctk.CTkEntry(CalculatorFrame, bg_color=("#CDCCCC"), placeholder_text="cm", placeholder_text_color=("#7A7A7A"))
+        self.part_height_entry.grid(row=7, column=2, padx=10, pady=10, sticky="w")
+        
+        # Enter part area in cm^2
+        self.label7 = ctk.CTkLabel(CalculatorFrame, text="Enter part area in cm^2:", bg_color=("#CDCCCC"))
+        self.label7.grid(row=8, column=1, padx=10, pady=10, sticky="w")
+        self.part_area_entry = ctk.CTkEntry(CalculatorFrame, bg_color=("#CDCCCC"), placeholder_text="cm^2", placeholder_text_color=("#7A7A7A"))
+        self.part_area_entry.grid(row=8, column=2, padx=10, pady=10, sticky="w")
+        
+        # Enter support material as percent of mass
+        self.label8 = ctk.CTkLabel(CalculatorFrame, text="Enter support material:", bg_color=("#CDCCCC"))
+        self.label8.grid(row=9, column=1, padx=10, pady=10, sticky="w")
+        self.support_material_entry = ctk.CTkEntry(CalculatorFrame, bg_color=("#CDCCCC"), placeholder_text="percent of mass (ex.0.15)", placeholder_text_color=("#7A7A7A"))
+        self.support_material_entry.grid(row=9, column=2, padx=10, pady=10, sticky="w")
+        
+        # Reset button, MISSING A COMMAND
+        self.reset_button = ctk.CTkButton(CalculatorFrame, text="Reset",
+                        font=("Arial", 20),
+                        text_color="#FFFFFF", fg_color="#77AC03",
+                        height=50, width=120, corner_radius=20,
+                        hover_color="#333333")
+        self.reset_button.grid(row=10, column=1, sticky="se", padx=10, pady=20)
+        
+        # Submit button
+        self.submit_button = ctk.CTkButton(CalculatorFrame, command=lambda: calculate(name_pro, machine_id_var, material_id_var, parts_produced_entry, numbers_of_builds_entry, part_mass_entry, material_id_menu, material_options, part_height_entry, part_area_entry, support_material_entry),
+                        text="Submit", font=("Arial", 20),
+                        text_color="#FFFFFF", fg_color="#77AC03",
+                        height=50, width=120, corner_radius=20,
+                        hover_color="#527605")
+        self.submit_button.grid(row=10, column=2, sticky="se", padx=10, pady=20)
 
-# Enter part height in cm
-label6 = ctk.CTkLabel(New_calculation_frame, text="Enter part height in cm:", font=("Arial", 18), text_color=("#0377AC"), bg_color=("#CDCCCC"),
-                    anchor="e", width=180)
-label6.place(x=270, y=420)
-part_height_entry = ctk.CTkEntry(New_calculation_frame, fg_color=("#FFFFFF"), bg_color=("#CDCCCC"), height=30, width=177, corner_radius=20, border_color="#0377AC", border_width=2,
-                               placeholder_text="cm", placeholder_text_color=("#7A7A7A"))
-part_height_entry.place(x=480, y=420)
 
-# Enter part area in cm^2
-label7 = ctk.CTkLabel(New_calculation_frame, text="Enter part area in cm^2:", font=("Arial", 18), text_color=("#0377AC"), bg_color=("#CDCCCC"),
-                    anchor="e", width=180)
-label7.place(x=270, y=470)
-part_area_entry = ctk.CTkEntry(New_calculation_frame, fg_color=("#FFFFFF"), bg_color=("#CDCCCC"), height=30, width=177, corner_radius=20, border_color="#0377AC", border_width=2,
-                                    placeholder_text="cm^2", placeholder_text_color=("#7A7A7A"))
-part_area_entry.place(x=480, y=470)
+######## GUI CALCULATION CLASS ######## ???
+      
+        # Calculations frame      
+        self.calculation_frame = CalculatorFrame(self)
+        self.calculation_frame.grid(row=0, column=3, columnspan=2, padx=20, pady=20, sticky="nsew")
+        
+        #Headline Calculation
+        self.header_Calculation = ctk.CTkLabel(self, text="Calculation", font=("Arial", 24))
+        self.header_Calculation.grid(row=0, column=3, columnspan=2, sticky="ew", padx=20, pady=20)
+        
+        
+        # Save button
+        self.btn_save = ctk.CTkButton(self, text="Submit", font=("Arial", 20),
+                                      text_color="#FFFFFF", fg_color="#77AC03",
+                                      height=50, width=120, corner_radius=20)
+        self.btn_submit.grid(row=4, column=4, sticky="se", padx=10, pady=20)
 
-# Enter support material as percent of mass
-label8 = ctk.CTkLabel(New_calculation_frame, text="Enter support material:", font=("Arial", 18), text_color=("#0377AC"), bg_color=("#CDCCCC"),
-                    anchor="e", width=180)
-label8.place(x=270, y=520)
-support_material_entry = ctk.CTkEntry(New_calculation_frame, fg_color=("#FFFFFF"), bg_color=("#CDCCCC"), height=30, width=177, corner_radius=20, border_color="#0377AC", border_width=2,
-                                    placeholder_text="percent of mass (ex.0.15)", placeholder_text_color=("#7A7A7A"))
-support_material_entry.place(x=480, y=520)
+######## GUI HISTORY CLASS ######## 
+class HistoryFrame(ctk.CTkFrame):
+    def __init__(self, parent):
+        super().__init__(parent, fg_color="#CDCCCC")
+        self.grid_rowconfigure(4, weight=1)
+        self.grid_columnconfigure(3, weight=1)
+        self.grid_columnconfigure(4, weight=1)
 
-# Reset button, MISSING A COMMAND
-reset_button = ctk.CTkButton(New_calculation_frame,
-                        text="Reset",
-                        font=("Arial", 24),
-                        text_color=("#FFFFFF"),
-                        fg_color=("#5F6669"),
-                        bg_color=("#CDCCCC"),
-                        height=40, width=150,
-                        hover_color="#333333",
-                        corner_radius=20)
-reset_button.place(x=279, y=620)
+        # Menu Frame
+        self.menu_frame = MenuFrame(self)
+        self.menu_frame.grid(row=0, column=0, padx=20, pady=20, sticky="ns")
+        
+        # History frame
+        self.master = ctk.CTkFrame(self, fg_color="#FFFFFF")        
+        self.master.grid(row=1, column=1, columnspan=7, padx=20, pady=20, sticky="nsew")
+        
+        #Headline History
+        self.header_History = ctk.CTkLabel(self, text="Calculation History", font=("Arial", 24))
+        self.header_History.grid(row=0, column=1, columnspan=7, sticky="ew", padx=20, pady=20)
+        
+        # Header
+        self.His_ID = ctk.CTkLabel(HistoryFrame, text="ID:", bg_color=("#CDCCCC"))
+        self.His_ID.grid(row=1, column=1, padx=10, pady=10, sticky="w")
+        self.His_date = ctk.CTkLabel(HistoryFrame, text="Date:", bg_color=("#CDCCCC"))
+        self.His_date.grid(row=1, column=2, padx=10, pady=10, sticky="w")
+        self.His_name = ctk.CTkLabel(HistoryFrame, text="Project name:", bg_color=("#CDCCCC"))
+        self.His_name.grid(row=1, column=3, padx=10, pady=10, sticky="w")
+        self.His_machine = ctk.CTkLabel(HistoryFrame, text="Machine:", bg_color=("#CDCCCC"))
+        self.His_machine.grid(row=1, column=4, padx=10, pady=10, sticky="w")
+        self.His_material = ctk.CTkLabel(HistoryFrame, text="Material:", bg_color=("#CDCCCC"))
+        self.His_material.grid(row=1, column=5, padx=10, pady=10, sticky="w")
+        self.His_coat_part = ctk.CTkLabel(HistoryFrame, text="Cost per part:", bg_color=("#CDCCCC"))
+        self.His_coat_part.grid(row=1, column=6, padx=10, pady=10, sticky="w")
+        self.His_details = ctk.CTkLabel(HistoryFrame, text="Details:", bg_color=("#CDCCCC"))
+        self.His_details.grid(row=1, column=7, padx=10, pady=10, sticky="w")        
 
-# Create and place the submit button
-submit_button = ctk.CTkButton(New_calculation_frame, command=lambda: calculate(name_pro, machine_id_var, material_id_var, parts_produced_entry, numbers_of_builds_entry, part_mass_entry, material_id_menu, material_options, part_height_entry, part_area_entry, support_material_entry),
-                        text="Submit",
-                        font=("Arial", 24),
-                        text_color=("#FFFFFF"),
-                        fg_color=("#77AC03"),
-                        bg_color=("#CDCCCC"),
-                        height=40, width=150,
-                        hover_color="#527605",
-                        corner_radius=20)
-submit_button.place(x=500, y=620)
+######## PRICE SETTINGS ########
+class PriceFrame(ctk.CTkFrame):
+    def __init__(self, parent):
+        super().__init__(parent, fg_color="#CDCCCC")
+        self.title("Price Settings")
+        self.grid_rowconfigure(4, weight=1)
+        self.grid_columnconfigure(1, weight=1)
+        self.grid_columnconfigure(2, weight=1)
 
-###### HISTORY PAGE
-def fetch_calculations():
-    with closing(get_db_connection()) as con:
-        with closing(con.cursor()) as cur:
-            print("Fetching calculations...")  # Debug statement
-            cur.execute("""SELECT c.calculation_id, c.date, c.project_name, n.machine_name, m.material_name, c.average_cost
-                           FROM calculations c
-                           JOIN materials m ON c.material_used = m.material_id
-                           JOIN machines n ON c.machine_used = n.machine_id""")
-            calculations = cur.fetchall()
-            print(f"Fetched calculations: {calculations}")  # Debug statement
-    return calculations
+        self.menu_frame = MenuFrame(self)
+        self.menu_frame.grid(row=0, column=0, padx=20, pady=20, sticky="ns")
+        
+        # Adjust row/column for price_settings_frame
+        for i in range(30):  
+            self.grid_rowconfigure(i, weight=1)
+        for i in range(15):
+            self.grid_columnconfigure(i, weight=1)
 
-# Call the function to trigger the error and see the debug output
-fetch_calculations()
+        # Create price settings frame (Container)
+        price_change_frame = ctk.CTkFrame(self, width=800, height=650, fg_color="#D9D9D9")       
+        
+######## GUI USER MANAGMENT CLASS ######## 
+class ManagmentFrame(ctk.CTkFrame):
+    def __init__(self, parent):
+        super().__init__(parent, fg_color="#CDCCCC")
+        self.title("User Managment")
+        self.grid_rowconfigure(4, weight=1)
+        self.grid_columnconfigure(1, weight=1)
+        self.grid_columnconfigure(2, weight=1)
+     
+        # Menu Frame
+        self.menu_frame = MenuFrame(self)
+        self.menu_frame.grid(row=0, column=0, padx=20, pady=20, sticky="ns")
+         
+        #New user frame 
+        self.managment_frame = ManagmentFrame(self)
+        self.managment_frame.grid(row=0, column=1, columnspan=2, padx=20, pady=20, sticky="nsew")   
+        
+        #Headline New User
+        self.header_User = ctk.CTkLabel(ManagmentFrame, text="New User", font=("Arial", 24))
+        self.header_User.grid(row=0, column=1, columnspan=2, sticky="ew", padx=20, pady=20)
+        
+        # Username entry
+        self.user_name = ctk.CTkLabel(ManagmentFrame, text="Enter new username:", bg_color=("#CDCCCC"))
+        self.user_name.grid(row=1, column=1, padx=10, pady=10, sticky="w")
+        self.username_entry_user_management = ctk.CTkEntry(ManagmentFrame, font=("Inter", 14))
+        self.username_entry_user_management.grid(row=1, column=2, padx=10, pady=10, sticky="w")
+        self.username_entry_user_management.insert(0)  
+        
+        # Bind events for username field
+        self.username_entry_user_management.bind("<FocusIn>", lambda event: on_focus_in(username_entry_user_management, "Enter username"))
+        self.username_entry_user_management.bind("<FocusOut>", lambda event: on_focus_out(username_entry_user_management, "Enter username"))
+        
+        # Password entry
+        self.password = ctk.CTkLabel(ManagmentFrame, text="Enter new password:", bg_color=("#CDCCCC"))
+        self.password.grid(row=2, column=1, padx=10, pady=10, sticky="w")
+        self.password_entry_user_management = ctk.CTkEntry(ManagmentFrame, font=("Inter", 12), fg_color="#FFFFFF")  
+        self.password_entry_user_management.grid(row=2, column=2, padx=10, pady=10, sticky="w")
+        self.password_entry_user_management.insert(0)  
+        
+        # Bind events for password field
+        self.password_entry_user_management.bind("<FocusIn>", lambda event: on_focus_in(password_entry_user_management, "Enter password"))
+        self.password_entry_user_management.bind("<FocusOut>", lambda event: on_focus_out(password_entry_user_management, "Enter password"))
+        
+        # Role entry
+        self.role = ctk.CTkLabel(ManagmentFrame, text="Choose role:", bg_color=("#CDCCCC"))
+        self.role.grid(row=3, column=1, padx=10, pady=10, sticky="w")
+        self.role_options = ["Admin", "User"]  # Define available roles
+        self.role_entry = ctk.CTkComboBo(ManagmentFrame, values=["role_options"],font=("Inter", 12), state="readonly")
+        self.role_entry.grid(row=3, column=2, padx=10, pady=10, sticky="w")
+        self.role_entry.set("Choose Role")
+        
+        # Create new user button
+        self.btn_new_user = ctk.CTkButton(self, text="Create new user", command=create_acc, font=("Arial", 20),
+                                      text_color="#FFFFFF", fg_color="#77AC03",
+                                      height=50, width=120, corner_radius=20)
+        self.btn_new_user.grid(row=4, column=2, sticky="se", padx=10, pady=20)
+        
+        # Registered users frame      
+        self.registered_frame = ManagmentFrame(self)
+        self.registered_frame.grid(row=0, column=3, columnspan=2, padx=20, pady=20, sticky="nsew")
+        
+        #Headline registered users
+        self.header_Registered = ctk.CTkLabel(self, text="Registered users", font=("Arial", 24))
+        self.header_Registered.grid(row=0, column=3, columnspan=2, sticky="ew", padx=20, pady=20)
+        
+        # Search
+        self.search_entry = ctk.CTkEntry(ManagmentFrame, font=("Inter", 14), fg_color="#FFFFFF", placeholder_text="Search in users")
+        self.search_entry.grid(row=1, column=3, columnspan=2, sticky="ew", padx=20, pady=20)
 
-master = ctk.CTkFrame(Calculation_history_frame,
-                    fg_color=("#CDCCCC"),
-                    bg_color=("#333333"),
-                    height=670,
-                    width=510)
-master.place(x=140, y=25)
+        # Bind focus in and out events for placeholder functionality
+        self.search_entry.bind("<FocusIn>", lambda event: on_focus_in(self.search_entry))
+        self.search_entry.bind("<FocusOut>", lambda event: on_focus_out(self.search_entry))
 
-headers = ["ID", "Date", "Project Name", "Machine", "Material", "Cost per part", "Details"]
-sort_order = ["ASC", "DESC"]
-current_order = [0] * (len(headers) - 1)  # Initialize current_order with the correct length
+        self.search_entry.bind("<KeyRelease>", lambda event: search_treeview(self.search_entry.get()))
 
-for j, header in enumerate(headers):
-    header_label = ctk.CTkLabel(master, text=header, font=("Arial", 16, "bold"))
-    header_label.grid(row=0, column=j, padx=10, pady=5)
 
-def sort_by_column(column_index):
-    global current_order
-    sort_columns = ["c.calculation_id", "c.date", "c.project_name", "n.machine_name", "m.material_name", "c.average_cost"]
-    if column_index < 0 or column_index >= len(current_order):
-        print(f"Invalid column index: {column_index}")
-        return
-    order = sort_order[current_order[column_index]]
-    cur.execute(f"""SELECT c.calculation_id, c.date, c.project_name, n.machine_name, m.material_name, c.average_cost
-                    FROM calculations c
-                    JOIN materials m ON c.material_used = m.material_id
-                    JOIN machines n ON c.machine_used = n.machine_id
-                    ORDER BY {sort_columns[column_index]} {order}""")
-    rows = cur.fetchall()
-    current_order[column_index] = 1 - current_order[column_index]
-    update_table(rows)
+#Buttons
+        # Refresh Users
+        self.btn_refrech_user = ctk.CTkButton(ManagmentFrame, text="Refresh Users", command=display_users, font=("Arial", 20),
+                                      text_color="#FFFFFF", fg_color="#77AC03",
+                                      height=50, width=120, corner_radius=20)
+        self.btn_refrech_user.grid(row=10, column=3, sticky="se", padx=10, pady=20)
+        
+        # Edit Users
+        self.btn_edit_user = ctk.CTkButton(ManagmentFrame, text="Edit Users", command=delete_acc, font=("Arial", 20),
+                                      text_color="#FFFFFF", fg_color="#77AC03",
+                                      height=50, width=120, corner_radius=20)
+        self.btn_delete_user.grid(row=10, column=4, sticky="se", padx=10, pady=20)
 
-def view_details(calculation_id):
-    cur.execute(f"""SELECT c.calculation_id, c.date, c.project_name, c.machine_used, c.material_used, c.parts_made, c.builds_done, c.total_cost, c.average_cost,
-                n.machine_name, m.material_name
-                FROM calculations c 
-                JOIN machines n ON c.machine_used = n.machine_id
-                JOIN materials m ON c.material_used = m.material_id
-                WHERE calculation_id = {calculation_id};""")
-    details = cur.fetchone()
-    details_window = Toplevel(master)
-    details_window.title("Calculation Details")
-    details_window.geometry("800x600")
-    details_text = Text(details_window, wrap=WORD, font=("Arial", 12))
-    details_text.insert(END, f"Calculation ID: {details[0]}\n")
-    details_text.insert(END, f"Date: {details[1]}\n")
-    details_text.insert(END, f"Machine Used: {details[9]}\n")
-    details_text.insert(END, f"Material Used: {details[10]}\n")
-    details_text.insert(END, f"Parts Made: {details[5]}\n")
-    details_text.insert(END, f"Builds Done: {details[6]}\n")
-    details_text.insert(END, f"Total Cost: {details[7]}\n")
-    details_text.insert(END, f"Average Cost: {details[8]}\n")
-    details_text.grid(row=0, column=0, sticky='nsew')
-    details_window.grid_rowconfigure(0, weight=1)
-    details_window.grid_columnconfigure(0, weight=1)
-    fig = Figure(figsize=(5, 4), dpi=100)
-    ax = fig.add_subplot(111)
-    parts = list(range(1, 101))
-    costs = [details[6] / part for part in parts]
-    ax.plot(parts, costs)
-    ax.set_xlabel('Number of Parts')
-    ax.set_ylabel('Cost per Part')
-    ax.set_title('Cost per Part up to 100')
-    canvas = FigureCanvasTkAgg(fig, master=details_window)
-    canvas.draw()
-    canvas.get_tk_widget().grid(row=1, column=0, sticky='nsew')
+        # Delete Users
+        self.btn_edit_user = ctk.CTkButton(ManagmentFrame, text="Delete Users", command=edit_acc, font=("Arial", 20),
+                                      text_color="#FFFFFF", fg_color="#77AC03",
+                                      height=50, width=120, corner_radius=20)
+        self.btn_delete_user.grid(row=10, column=5, sticky="se", padx=10, pady=20)
+        
 
-def update_table(rows=None):
-    for widget in master.winfo_children():
-        if isinstance(widget, ctk.CTkLabel) or isinstance(widget, ctk.CTkButton):
-            widget.destroy()
-    for j, header in enumerate(headers):
-        header_button = ctk.CTkButton(master, text=header, text_color="black", font=("Arial", 16, "bold"), fg_color="#C6C5C5", border_width=2, border_color="#0377AC", command=lambda j=j: sort_by_column(j))
-        header_button.grid(row=0, column=j, padx=10, pady=5)
-    if rows is None:
-        cur.execute("SELECT c.calculation_id, c.date, c.project_name, n.machine_name, m.material_name, c.average_cost FROM calculations c JOIN materials m ON c.material_used = m.material_id JOIN machines n ON c.machine_used = n.machine_id")
-        rows = cur.fetchall()
-    for i, row in enumerate(rows):
-        for j, value in enumerate(row):
-            cell = ctk.CTkLabel(master, text=value, font=("Arial", 12), text_color="#0377AC")
-            cell.grid(row=i+1, column=j, padx=10, pady=5)
-        details_button = ctk.CTkButton(master, text="Details", font=("Arial", 10), command=lambda row=row: view_details(row[0]))
-        details_button.grid(row=i+1, column=6, padx=10, pady=5)
+ # Treeview Configuration 
+        self.style = ttk.Style()
+        self.style.configure("Custom.Treeview", font=("Inter", 12))  # Set font and size
+        self.style.configure("Custom.Treeview.Heading", font=("Inter", 14, "bold"))  # Header font
 
-# Call update_table to populate the table initially
-update_table()
+        # Customizing Treeview
+        self.style.map("Custom.Treeview", background=[("selected", "#D9D9D9")])  # Row selection color
+        self.style.configure("Custom.Treeview", background="#D9D9D9", fieldbackground="#D9D9D9")  # Default row and cell background
 
-initialize_database()
-show_frame(background_frame)
-root.after(100, lambda: username_entry_login.focus())
-root.after(500, lambda: show_frame(login_frame))
-root.mainloop()
+        # Customizing Treeview Header
+        self.style.configure("Custom.Treeview.Heading", foreground="#000000", font=("Inter", 14))  # Header background color and text color
+        self.style.map("Custom.Treeview.Heading", background=[("active", "#000000")])  # Active header color
+
+        # Treeview with scrollbar
+        self.user_tree = ttk.Treeview(self.registered_frame, style="Custom.Treeview", columns=("ID", "Username", "Role"), show="headings")
+        self.user_tree.heading("ID", text="ID")
+        self.user_tree.heading("Username", text="Username")
+        self.user_tree.heading("Role", text="Role")
+
+        # Set column widths and alignment for Treeview
+        self.user_tree.column("ID", width=50, anchor="center")
+        self.user_tree.column("Username", width=200, anchor="center")
+        self.user_tree.column("Role", width=100, anchor="center")
+        self.user_tree.grid(row=3, column=10, rowspan=6, columnspan=3, sticky="nsew")  # Placing Treeview in upper right
+
+        # Add scrollbar for Treeview
+        self.user_scrollbar = ttk.Scrollbar(self.registered_frame, orient="vertical", command=self.user_tree.yview)
+        self.user_tree.configure(yscroll=self.user_scrollbar.set)
+
+        # Place scrollbar in the grid, ensuring it stays within the height of the Treeview
+        self.user_scrollbar.grid(row=3, column=13, rowspan=6, sticky="nsw")  # The scrollbar aligns with Treeview
+        self.style.configure("TScrollbar", gripcount=0, background="#00A3EE", troughcolor="#D9D9D9", bordercolor="#00A3EE")
+
+        # Ensure the frame can stretch and the Treeview + Scrollbar can fill the entire area
+        self.registered_frame.grid_rowconfigure      
+
+
+
+
+# Run the App
+if __name__ == "__main__":
+    app = App()
+    app.mainloop()

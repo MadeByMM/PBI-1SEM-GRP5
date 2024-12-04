@@ -3,8 +3,6 @@ from tkinter import messagebox
 from tkinter import Tk, Label, Entry, Button, StringVar, OptionMenu
 from tkinter import *
 import customtkinter as c
-from tkinter import *
-import customtkinter as c
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import sqlite3
@@ -304,11 +302,12 @@ material_options = {"Choose One": None, **material_options}
 # Initialize machine_options
 machine_options = {}
 
-# Create the main window
+######## GUI COSTUMETKINTER APP MAIN CLASS ######## 
 root = c.CTk()
 root.title("Calculator")
 root.geometry("1280x720")
 root.config(bg= "#333333")
+c.CTk.set_default_color_theme("GUI/Nexttheme.json")
 
 #Frame around head menue, remove when we have a menu
 framehm = c.CTkFrame(root,
